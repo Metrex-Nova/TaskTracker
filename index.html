@@ -249,7 +249,6 @@
             grid-column: 1 / -1;
         }
 
-        /* Hide the default date picker, we'll trigger it programmatically */
         .hidden-date-input {
             position: absolute;
             opacity: 0;
@@ -333,7 +332,6 @@
         // Update UI with current date
         function updateDateDisplay() {
             document.getElementById('currentDate').textContent = formatDate(currentDate);
-            // Update the date picker value
             document.getElementById('datePicker').value = formatDateForInput(currentDate);
         }
 
@@ -370,39 +368,33 @@
                     <button class="add-task-btn">+ Add Task</button>
                 `;
                 
-                // Card title editing
                 const titleInput = cardElement.querySelector('.card-title');
                 titleInput.addEventListener('input', (e) => {
                     updateCard(cardIndex, { title: e.target.value });
                 });
                 
-                // Remove card
                 cardElement.querySelector('.remove-card').addEventListener('click', () => {
                     removeCard(cardIndex);
                 });
                 
-                // Task checkboxes
                 cardElement.querySelectorAll('.task-checkbox').forEach((checkbox, taskIndex) => {
                     checkbox.addEventListener('change', () => {
                         updateTask(cardIndex, taskIndex, { completed: checkbox.checked });
                     });
                 });
                 
-                // Task text editing
                 cardElement.querySelectorAll('.task-text').forEach((input, taskIndex) => {
                     input.addEventListener('input', (e) => {
                         updateTask(cardIndex, taskIndex, { text: e.target.value });
                     });
                 });
                 
-                // Remove task buttons
                 cardElement.querySelectorAll('.remove-task').forEach((button, taskIndex) => {
                     button.addEventListener('click', () => {
                         removeTask(cardIndex, taskIndex);
                     });
                 });
                 
-                // Add task button
                 cardElement.querySelector('.add-task-btn').addEventListener('click', () => {
                     addTask(cardIndex);
                 });
@@ -469,7 +461,6 @@
             const dateKey = getDateKey(currentDate);
             cardsData[dateKey].splice(cardIndex, 1);
             
-            // Remove date entry if no cards left
             if (cardsData[dateKey].length === 0) {
                 delete cardsData[dateKey];
             }
@@ -508,12 +499,12 @@
             
             // Date header
             pdf.setFontSize(16);
-            pdf.text(formatDate(currentDate), margin, yPos);
-            yPos += 10;
+            pdf.text(`Tasks for ${formatDate(currentDate)}`, margin, yPos);
+            yPos += 12;
             
             pdf.setFontSize(11);
             
-            // Add cards and tasks
+            // Add cards and tasks in table format
             cards.forEach((card, cardIndex) => {
                 if (yPos > 270) {
                     pdf.addPage();
@@ -522,24 +513,47 @@
                 
                 // Card title
                 pdf.setFont('helvetica', 'bold');
-                pdf.text(`${cardIndex + 1}. ${card.title}`, margin, yPos);
-                yPos += 7;
+                pdf.text(`Card: ${card.title}`, margin, yPos);
+                yPos += 8;
                 
-                // Tasks
+                // Table header
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('Status', margin, yPos);
+                pdf.text('Task Description', margin + 25, yPos);
+                yPos += 6;
+                
+                // Horizontal line
+                pdf.line(margin, yPos, 200, yPos);
+                yPos += 8;
+                
+                // Tasks in table format
                 pdf.setFont('helvetica', 'normal');
                 card.tasks.forEach((task, taskIndex) => {
                     if (yPos > 270) {
                         pdf.addPage();
                         yPos = margin;
+                        // Re-add table header on new page
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.text('Status', margin, yPos);
+                        pdf.text('Task Description', margin + 25, yPos);
+                        yPos += 6;
+                        pdf.line(margin, yPos, 200, yPos);
+                        yPos += 8;
+                        pdf.setFont('helvetica', 'normal');
                     }
                     
-                    const checkbox = task.completed ? '✓' : '□';
-                    const taskText = `${checkbox} ${task.text}`;
-                    pdf.text(`  ${taskIndex + 1}. ${taskText}`, margin, yPos);
-                    yPos += 6;
+                    const status = task.completed ? 'Done' : 'Undone';
+                    const taskNumber = `${cardIndex + 1}.${taskIndex + 1}`;
+                    
+                    // Status column
+                    pdf.text(status, margin, yPos);
+                    // Task description column
+                    pdf.text(`${taskNumber}. ${task.text}`, margin + 25, yPos);
+                    
+                    yPos += 7;
                 });
                 
-                yPos += 4; // Space between cards
+                yPos += 10; // Space between cards
             });
             
             pdf.save(`tasks_${dateKey}.pdf`);
@@ -554,8 +568,42 @@
             const startDate = new Date(year, month, 1);
             const endDate = new Date(year, month + 1, 0);
             
+            // Collect all tasks for the month
+            let monthTasks = [];
+            for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+                const dateKey = date.toISOString().split('T')[0];
+                const cards = cardsData[dateKey] || [];
+                
+                if (cards.length > 0) {
+                    const formattedDate = date.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                    
+                    cards.forEach((card, cardIndex) => {
+                        card.tasks.forEach((task, taskIndex) => {
+                            monthTasks.push({
+                                date: formattedDate,
+                                dateObj: new Date(date),
+                                cardTitle: card.title,
+                                taskText: task.text,
+                                completed: task.completed,
+                                cardIndex: cardIndex,
+                                taskIndex: taskIndex
+                            });
+                        });
+                    });
+                }
+            }
+            
+            if (monthTasks.length === 0) {
+                alert('No tasks for this month');
+                return;
+            }
+            
             const pdf = new jsPDF({
-                orientation: 'portrait',
+                orientation: 'landscape',
                 unit: 'mm',
                 format: 'a4'
             });
@@ -566,64 +614,59 @@
             // Month header
             pdf.setFontSize(16);
             const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            pdf.text(`Tasks for ${monthName}`, margin, yPos);
-            yPos += 10;
+            pdf.text(`Monthly Tasks - ${monthName}`, margin, yPos);
+            yPos += 12;
             
+            // Table header
             pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Date', margin, yPos);
+            pdf.text('Card', margin + 30, yPos);
+            pdf.text('Status', margin + 80, yPos);
+            pdf.text('Task Description', margin + 110, yPos);
+            yPos += 6;
             
-            // Iterate through all days in month
-            for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-                const dateKey = date.toISOString().split('T')[0];
-                const cards = cardsData[dateKey] || [];
-                
-                if (cards.length > 0) {
-                    if (yPos > 270) {
-                        pdf.addPage();
-                        yPos = margin;
-                    }
-                    
-                    // Date header
+            // Horizontal line
+            pdf.line(margin, yPos, 280, yPos);
+            yPos += 8;
+            
+            // Sort tasks by date
+            monthTasks.sort((a, b) => a.dateObj - b.dateObj);
+            
+            // Tasks in table format
+            pdf.setFont('helvetica', 'normal');
+            monthTasks.forEach((task, index) => {
+                if (yPos > 190) {
+                    pdf.addPage();
+                    yPos = margin;
+                    // Re-add table header on new page
                     pdf.setFont('helvetica', 'bold');
-                    pdf.text(date.toLocaleDateString('en-US', { 
-                        weekday: 'short', 
-                        month: 'short', 
-                        day: 'numeric' 
-                    }), margin, yPos);
+                    pdf.text('Date', margin, yPos);
+                    pdf.text('Card', margin + 30, yPos);
+                    pdf.text('Status', margin + 80, yPos);
+                    pdf.text('Task Description', margin + 110, yPos);
                     yPos += 6;
-                    
-                    // Cards and tasks
+                    pdf.line(margin, yPos, 280, yPos);
+                    yPos += 8;
                     pdf.setFont('helvetica', 'normal');
-                    cards.forEach((card, cardIndex) => {
-                        if (yPos > 270) {
-                            pdf.addPage();
-                            yPos = margin;
-                        }
-                        
-                        // Card title
-                        pdf.text(`  ${cardIndex + 1}. ${card.title}`, margin, yPos);
-                        yPos += 5;
-                        
-                        // Tasks
-                        card.tasks.forEach((task, taskIndex) => {
-                            if (yPos > 270) {
-                                pdf.addPage();
-                                yPos = margin;
-                            }
-                            
-                            const checkbox = task.completed ? '✓' : '□';
-                            const taskText = `${checkbox} ${task.text}`;
-                            pdf.text(`    ${taskIndex + 1}. ${taskText}`, margin, yPos);
-                            yPos += 5;
-                        });
-                        
-                        yPos += 3; // Space between cards
-                    });
-                    
-                    yPos += 5; // Space between days
                 }
-            }
+                
+                const status = task.completed ? 'Done' : 'Undone';
+                const taskNumber = `${task.cardIndex + 1}.${task.taskIndex + 1}`;
+                
+                // Date column
+                pdf.text(task.date, margin, yPos);
+                // Card column
+                pdf.text(task.cardTitle, margin + 30, yPos);
+                // Status column
+                pdf.text(status, margin + 80, yPos);
+                // Task description column
+                pdf.text(`${taskNumber}. ${task.taskText}`, margin + 110, yPos);
+                
+                yPos += 7;
+            });
             
-            pdf.save(`tasks_${year}_${month + 1}.pdf`);
+            pdf.save(`tasks_monthly_${year}_${month + 1}.pdf`);
         }
 
         // Initialize
@@ -632,7 +675,7 @@
             updateDateDisplay();
             renderCards();
             
-            // Event listeners for navigation
+            // Event listeners
             document.getElementById('prevDay').addEventListener('click', () => {
                 currentDate.setDate(currentDate.getDate() - 1);
                 updateDateDisplay();
@@ -654,25 +697,19 @@
                 saveData();
             });
             
-            // Calendar icon date picker
             document.getElementById('calendarPicker').addEventListener('click', () => {
-                // Trigger the hidden date input
                 const datePicker = document.getElementById('datePicker');
-                datePicker.showPicker(); // Modern browsers support this
+                datePicker.showPicker();
                 datePicker.focus();
             });
             
-            // Date picker change event
             document.getElementById('datePicker').addEventListener('change', (e) => {
                 if (e.target.value) {
                     navigateToDate(e.target.value);
                 }
             });
             
-            // Add card button
             document.getElementById('addCardBtn').addEventListener('click', addCard);
-            
-            // PDF buttons
             document.getElementById('dailyPdf').addEventListener('click', generateDailyPDF);
             document.getElementById('monthlyPdf').addEventListener('click', generateMonthlyPDF);
         }
