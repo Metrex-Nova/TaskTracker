@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taskflow</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg: #0a0a0c;
@@ -35,32 +37,26 @@
             overflow-x: hidden;
         }
 
-        /* ── Ambient background ── */
         body::before {
             content: '';
-            position: fixed;
-            top: -40%; left: -20%;
+            position: fixed; top: -40%; left: -20%;
             width: 80%; height: 80%;
             background: radial-gradient(ellipse, rgba(201,160,255,0.04) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
+            pointer-events: none; z-index: 0;
         }
         body::after {
             content: '';
-            position: fixed;
-            bottom: -30%; right: -10%;
+            position: fixed; bottom: -30%; right: -10%;
             width: 60%; height: 60%;
             background: radial-gradient(ellipse, rgba(90,228,167,0.03) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
+            pointer-events: none; z-index: 0;
         }
 
-        /* ── Login Screen ── */
+        /* ── Login ── */
         .login-screen {
             position: fixed; inset: 0;
             display: flex; align-items: center; justify-content: center;
-            z-index: 100;
-            background: var(--bg);
+            z-index: 100; background: var(--bg);
             animation: fadeIn 0.4s ease;
         }
         .login-screen.hidden { display: none; }
@@ -73,60 +69,43 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-lg);
             padding: 48px 40px;
-            width: 380px;
-            max-width: 90vw;
+            width: 400px; max-width: 92vw;
             animation: slideUp 0.5s ease 0.1s both;
             position: relative;
         }
         .login-card::before {
             content: '';
-            position: absolute;
-            inset: -1px;
+            position: absolute; inset: -1px;
             border-radius: var(--radius-lg);
             background: linear-gradient(135deg, rgba(201,160,255,0.15), transparent 50%, rgba(90,228,167,0.1));
             z-index: -1;
             mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: exclude;
-            padding: 1px;
+            mask-composite: exclude; padding: 1px;
         }
 
         .login-brand {
             font-family: 'Instrument Serif', serif;
-            font-size: 36px;
-            text-align: center;
-            margin-bottom: 4px;
-            letter-spacing: -0.5px;
+            font-size: 36px; text-align: center;
+            margin-bottom: 4px; letter-spacing: -0.5px;
         }
         .login-brand span { color: var(--accent); font-style: italic; }
         .login-subtitle {
-            text-align: center;
-            color: var(--text-dim);
-            font-size: 13px;
-            margin-bottom: 36px;
-            letter-spacing: 0.3px;
+            text-align: center; color: var(--text-dim);
+            font-size: 13px; margin-bottom: 36px; letter-spacing: 0.3px;
         }
 
         .form-group { margin-bottom: 20px; }
         .form-label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: var(--text-dim);
-            margin-bottom: 8px;
-            font-weight: 500;
+            display: block; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--text-dim);
+            margin-bottom: 8px; font-weight: 500;
         }
         .form-input {
-            width: 100%;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 12px 16px;
-            border-radius: var(--radius);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 14px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            outline: none;
+            width: 100%; background: var(--bg);
+            border: 1px solid var(--border); color: var(--text);
+            padding: 12px 16px; border-radius: var(--radius);
+            font-family: 'DM Sans', sans-serif; font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s; outline: none;
         }
         .form-input:focus {
             border-color: var(--accent-dim);
@@ -137,15 +116,11 @@
         .login-btn {
             width: 100%;
             background: linear-gradient(135deg, var(--accent-dim), #9b6dd7);
-            border: none;
-            color: #fff;
-            padding: 13px;
+            border: none; color: #fff; padding: 13px;
             border-radius: var(--radius);
             font-family: 'DM Sans', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            cursor: pointer;
+            font-size: 14px; font-weight: 700;
+            letter-spacing: 0.5px; cursor: pointer;
             transition: transform 0.15s, box-shadow 0.2s;
             margin-top: 8px;
         }
@@ -154,155 +129,105 @@
             box-shadow: 0 6px 24px rgba(201,160,255,0.2);
         }
         .login-btn:active { transform: translateY(0); }
+        .login-btn:disabled {
+            opacity: 0.6; cursor: not-allowed;
+            transform: none; box-shadow: none;
+        }
 
         .login-error {
-            color: var(--danger);
-            font-size: 12px;
-            text-align: center;
-            margin-top: 12px;
-            min-height: 18px;
+            color: var(--danger); font-size: 12px;
+            text-align: center; margin-top: 12px; min-height: 18px;
+        }
+        .login-success {
+            color: var(--done); font-size: 12px;
+            text-align: center; margin-top: 12px; min-height: 18px;
         }
         .login-toggle {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 13px;
-            color: var(--text-dim);
+            text-align: center; margin-top: 20px;
+            font-size: 13px; color: var(--text-dim);
         }
         .login-toggle a {
-            color: var(--accent);
-            cursor: pointer;
-            text-decoration: none;
-            font-weight: 500;
+            color: var(--accent); cursor: pointer;
+            text-decoration: none; font-weight: 500;
         }
         .login-toggle a:hover { text-decoration: underline; }
 
-        /* ── App Layout ── */
+        /* ── App ── */
         .app { display: none; position: relative; z-index: 1; }
         .app.active { display: block; }
 
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 24px 20px;
-        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
 
-        /* ── Top Bar ── */
         .topbar {
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
             justify-content: space-between;
-            margin-bottom: 32px;
-            flex-wrap: wrap;
-            gap: 16px;
+            margin-bottom: 32px; flex-wrap: wrap; gap: 16px;
         }
         .brand {
             font-family: 'Instrument Serif', serif;
-            font-size: 26px;
-            letter-spacing: -0.3px;
-            user-select: none;
+            font-size: 26px; letter-spacing: -0.3px; user-select: none;
         }
         .brand span { color: var(--accent); font-style: italic; }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .user-info { display: flex; align-items: center; gap: 12px; }
         .user-badge {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 6px 16px;
-            font-size: 13px;
-            color: var(--text-dim);
+            background: var(--surface2); border: 1px solid var(--border);
+            border-radius: 20px; padding: 6px 16px;
+            font-size: 13px; color: var(--text-dim);
             display: flex; align-items: center; gap: 6px;
         }
         .user-badge .dot {
             width: 6px; height: 6px;
-            background: var(--done);
-            border-radius: 50%;
+            background: var(--done); border-radius: 50%;
         }
         .logout-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-dim); padding: 6px 14px;
+            border-radius: 20px; font-family: 'DM Sans', sans-serif;
+            font-size: 12px; cursor: pointer; transition: all 0.2s;
         }
-        .logout-btn:hover {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
+        .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-        /* ── Date Navigation ── */
+        /* ── Date Nav ── */
         .date-nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 28px;
-            flex-wrap: wrap;
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 12px;
+            margin-bottom: 28px; flex-wrap: wrap;
         }
-        .date-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .date-controls { display: flex; align-items: center; gap: 8px; }
         .nav-btn {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            width: 36px; height: 36px;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 16px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); width: 36px; height: 36px;
+            border-radius: var(--radius); cursor: pointer;
+            font-size: 16px; display: flex; align-items: center;
+            justify-content: center; transition: all 0.15s;
         }
         .nav-btn:hover { background: var(--surface2); border-color: var(--border-hover); }
 
         .current-date {
             font-family: 'Instrument Serif', serif;
-            font-size: 22px;
-            min-width: 200px;
-            text-align: center;
-            letter-spacing: -0.3px;
+            font-size: 22px; min-width: 200px;
+            text-align: center; letter-spacing: -0.3px;
         }
 
-        .action-btns {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+        .action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
         .action-btn {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            padding: 8px 16px;
-            border-radius: var(--radius);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.15s;
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text-dim); padding: 8px 16px;
+            border-radius: var(--radius); font-family: 'DM Sans', sans-serif;
+            font-size: 13px; cursor: pointer; transition: all 0.15s;
             display: flex; align-items: center; gap: 6px;
         }
         .action-btn:hover { background: var(--surface2); color: var(--text); border-color: var(--border-hover); }
         .action-btn.primary {
             background: var(--accent-glow);
-            border-color: var(--accent-dim);
-            color: var(--accent);
+            border-color: var(--accent-dim); color: var(--accent);
         }
-        .action-btn.primary:hover {
-            background: rgba(201,160,255,0.14);
-        }
+        .action-btn.primary:hover { background: rgba(201,160,255,0.14); }
 
         .hidden-date-input { position: absolute; opacity: 0; pointer-events: none; }
 
-        /* ── Cards Grid ── */
+        /* ── Cards ── */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -314,10 +239,8 @@
         }
 
         .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 20px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 20px;
             transition: border-color 0.2s, box-shadow 0.2s;
             animation: slideUp 0.3s ease both;
         }
@@ -327,22 +250,14 @@
         }
 
         .card-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 14px;
-            gap: 8px;
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 14px; gap: 8px;
         }
         .card-title-input {
-            background: transparent;
-            border: none;
-            color: var(--text);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 15px;
-            font-weight: 700;
-            flex: 1;
-            padding: 4px 0;
-            outline: none;
+            background: transparent; border: none;
+            color: var(--text); font-family: 'DM Sans', sans-serif;
+            font-size: 15px; font-weight: 700; flex: 1;
+            padding: 4px 0; outline: none;
             border-bottom: 1px solid transparent;
             transition: border-color 0.2s;
         }
@@ -350,167 +265,125 @@
         .card-title-input::placeholder { color: var(--text-muted); }
 
         .card-count {
-            font-size: 11px;
-            color: var(--text-muted);
-            background: var(--bg);
-            padding: 2px 8px;
-            border-radius: 10px;
-            flex-shrink: 0;
+            font-size: 11px; color: var(--text-muted);
+            background: var(--bg); padding: 2px 8px;
+            border-radius: 10px; flex-shrink: 0;
         }
 
         .icon-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            width: 28px; height: 28px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
+            background: transparent; border: none;
+            color: var(--text-muted); width: 28px; height: 28px;
+            border-radius: 6px; cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s;
-            flex-shrink: 0;
+            transition: all 0.15s; flex-shrink: 0;
         }
         .icon-btn:hover { background: var(--surface2); color: var(--text-dim); }
         .icon-btn.danger:hover { color: var(--danger); }
 
-        /* ── Tasks ── */
         .tasks-list { display: flex; flex-direction: column; gap: 6px; }
 
         .task-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            border-radius: 8px;
-            transition: background 0.15s;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 8px; transition: background 0.15s;
         }
         .task-row:hover { background: rgba(255,255,255,0.02); }
 
-        .custom-check {
-            position: relative;
-            width: 18px; height: 18px;
-            flex-shrink: 0;
-        }
+        .custom-check { position: relative; width: 18px; height: 18px; flex-shrink: 0; }
         .custom-check input {
-            position: absolute;
-            opacity: 0;
-            width: 100%; height: 100%;
-            cursor: pointer;
-            z-index: 1;
+            position: absolute; opacity: 0;
+            width: 100%; height: 100%; cursor: pointer; z-index: 1;
         }
         .custom-check .check-visual {
             width: 18px; height: 18px;
             border: 1.5px solid var(--border-hover);
-            border-radius: 5px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-            font-size: 11px;
-            color: transparent;
+            border-radius: 5px; display: flex;
+            align-items: center; justify-content: center;
+            transition: all 0.2s; font-size: 11px; color: transparent;
         }
         .custom-check input:checked + .check-visual {
             background: var(--done-dim);
-            border-color: var(--done);
-            color: #fff;
+            border-color: var(--done); color: #fff;
         }
 
         .task-text-input {
-            background: transparent;
-            border: none;
-            color: var(--text);
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            flex: 1;
-            padding: 2px 0;
-            outline: none;
-            transition: color 0.2s;
+            background: transparent; border: none;
+            color: var(--text); font-family: 'DM Sans', sans-serif;
+            font-size: 13px; flex: 1; padding: 2px 0;
+            outline: none; transition: color 0.2s;
         }
         .task-text-input::placeholder { color: var(--text-muted); }
         .task-row.completed .task-text-input {
-            color: var(--text-muted);
-            text-decoration: line-through;
+            color: var(--text-muted); text-decoration: line-through;
         }
 
         .add-task-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 10px;
-            margin-top: 4px;
-            border-radius: 8px;
-            cursor: pointer;
-            color: var(--text-muted);
-            font-size: 13px;
-            transition: all 0.15s;
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; margin-top: 4px;
+            border-radius: 8px; cursor: pointer;
+            color: var(--text-muted); font-size: 13px; transition: all 0.15s;
         }
         .add-task-row:hover { background: rgba(255,255,255,0.02); color: var(--text-dim); }
         .add-task-row .plus {
             width: 18px; height: 18px;
             border: 1.5px dashed var(--border-hover);
-            border-radius: 5px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 13px;
-            flex-shrink: 0;
+            border-radius: 5px; display: flex;
+            align-items: center; justify-content: center;
+            font-size: 13px; flex-shrink: 0;
         }
 
-        /* ── Empty State ── */
         .empty-state {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--text-muted);
+            grid-column: 1 / -1; text-align: center;
+            padding: 60px 20px; color: var(--text-muted);
         }
-        .empty-state .empty-icon {
-            font-size: 40px;
-            margin-bottom: 16px;
-            opacity: 0.4;
-        }
+        .empty-state .empty-icon { font-size: 40px; margin-bottom: 16px; opacity: 0.4; }
         .empty-state p { font-size: 14px; line-height: 1.6; }
 
-        /* ── Loading overlay ── */
+        /* ── Loading / Toast ── */
         .loading-overlay {
-            position: fixed; inset: 0;
-            background: var(--bg);
+            position: fixed; inset: 0; background: var(--bg);
             display: flex; align-items: center; justify-content: center;
-            z-index: 200;
-            transition: opacity 0.3s;
+            z-index: 200; transition: opacity 0.3s;
         }
         .loading-overlay.fade-out { opacity: 0; pointer-events: none; }
         .spinner {
             width: 24px; height: 24px;
             border: 2px solid var(--border);
             border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
+            border-radius: 50%; animation: spin 0.6s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Status Toast ── */
         .toast {
-            position: fixed;
-            bottom: 24px; right: 24px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 10px 18px;
-            font-size: 13px;
-            color: var(--text-dim);
-            z-index: 300;
-            transform: translateY(80px);
-            opacity: 0;
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 10px 18px;
+            font-size: 13px; color: var(--text-dim); z-index: 300;
+            transform: translateY(80px); opacity: 0;
             transition: all 0.3s ease;
         }
         .toast.show { transform: translateY(0); opacity: 1; }
+
+        .syncing-indicator {
+            position: fixed; top: 12px; right: 12px;
+            font-size: 11px; color: var(--text-muted);
+            display: none; align-items: center; gap: 6px; z-index: 50;
+        }
+        .syncing-indicator.active { display: flex; }
+        .syncing-indicator .mini-spinner {
+            width: 12px; height: 12px;
+            border: 1.5px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.6s linear infinite;
+        }
     </style>
 </head>
 <body>
 
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-</div>
-
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
 <div class="toast" id="toast"></div>
+<div class="syncing-indicator" id="syncIndicator"><div class="mini-spinner"></div> Saving...</div>
 
-<!-- ── Login Screen ── -->
+<!-- ══════ LOGIN ══════ -->
 <div class="login-screen" id="loginScreen">
     <div class="login-card">
         <div class="login-brand">Task<span>flow</span></div>
@@ -518,12 +391,12 @@
 
         <div id="loginForm">
             <div class="form-group">
-                <label class="form-label">Username</label>
-                <input class="form-input" type="text" id="loginUser" placeholder="Enter username" autocomplete="username">
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
             </div>
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input class="form-input" type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password">
+                <input class="form-input" type="password" id="loginPass" placeholder="Your password" autocomplete="current-password">
             </div>
             <button class="login-btn" id="loginBtn">Sign In</button>
             <p class="login-error" id="loginError"></p>
@@ -532,12 +405,12 @@
 
         <div id="registerForm" style="display:none">
             <div class="form-group">
-                <label class="form-label">Choose a Username</label>
-                <input class="form-input" type="text" id="regUser" placeholder="Pick a username" autocomplete="username">
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
             </div>
             <div class="form-group">
-                <label class="form-label">Set Password</label>
-                <input class="form-input" type="password" id="regPass" placeholder="Create a password" autocomplete="new-password">
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="regPass" placeholder="Min 6 characters" autocomplete="new-password">
             </div>
             <div class="form-group">
                 <label class="form-label">Confirm Password</label>
@@ -545,12 +418,13 @@
             </div>
             <button class="login-btn" id="registerBtn">Create Account</button>
             <p class="login-error" id="regError"></p>
+            <p class="login-success" id="regSuccess"></p>
             <p class="login-toggle">Have an account? <a id="showLogin">Sign in</a></p>
         </div>
     </div>
 </div>
 
-<!-- ── Main App ── -->
+<!-- ══════ APP ══════ -->
 <div class="app" id="app">
     <div class="container">
         <div class="topbar">
@@ -581,117 +455,163 @@
 
 <script>
 // ═══════════════════════════════════════════
-// Persistent Storage Adapter
+// CONFIG — Replace these with your Supabase project values
 // ═══════════════════════════════════════════
-const Storage = {
-    async get(key) {
-        try {
-            const r = await window.storage.get(key);
-            return r ? JSON.parse(r.value) : null;
-        } catch { return null; }
-    },
-    async set(key, value) {
-        try {
-            await window.storage.set(key, JSON.stringify(value));
-            return true;
-        } catch { return false; }
-    },
-    async delete(key) {
-        try {
-            await window.storage.delete(key);
-            return true;
-        } catch { return false; }
-    },
-    async list(prefix) {
-        try {
-            const r = await window.storage.list(prefix);
-            return r ? r.keys : [];
-        } catch { return []; }
-    }
-};
+const SUPABASE_URL = 'https://dfghvpvzhbruzfvpodda.supabase.co';       // e.g. https://xyzabc.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmZ2h2cHZ6aGJydXpmdnBvZGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTk0MDQsImV4cCI6MjA4ODM3NTQwNH0.pWOZWUmADwkJ6MZ3rpgi5o7DRi3I3YQiCAtMxi-lriE'; // from Settings > API
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ═══════════════════════════════════════════
-// App State
+// State
 // ═══════════════════════════════════════════
 let currentUser = null;
 let currentDate = new Date();
-let cardsData = {}; // dateKey -> [cards]
-let saveTimeout = null;
+let cards = [];      // [{id, title, position, tasks: [{id, text, completed, position}]}]
+let debounceTimers = {};
 
 // ═══════════════════════════════════════════
-// Auth (simple hash-based)
+// Helpers
 // ═══════════════════════════════════════════
-async function simpleHash(str) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+function formatDate(d) {
+    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
-
-async function registerUser(username, password) {
-    username = username.trim().toLowerCase();
-    if (!username || username.length < 2) return 'Username must be at least 2 characters';
-    if (/[\s\/\\"']/.test(username)) return 'Username cannot contain spaces or special chars';
-    if (!password || password.length < 4) return 'Password must be at least 4 characters';
-
-    const existing = await Storage.get(`user:${username}`);
-    if (existing) return 'Username already taken';
-
-    const hash = await simpleHash(password);
-    await Storage.set(`user:${username}`, { hash, created: Date.now() });
-    return null;
+function getDateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-async function loginUser(username, password) {
-    username = username.trim().toLowerCase();
-    if (!username || !password) return 'Please fill in both fields';
-
-    const user = await Storage.get(`user:${username}`);
-    if (!user) return 'User not found';
-
-    const hash = await simpleHash(password);
-    if (hash !== user.hash) return 'Incorrect password';
-
-    return null;
-}
-
-// ═══════════════════════════════════════════
-// Data persistence
-// ═══════════════════════════════════════════
-async function loadUserData() {
-    const data = await Storage.get(`tasks:${currentUser}`);
-    cardsData = data || {};
-}
-
-function scheduleSave() {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(async () => {
-        await Storage.set(`tasks:${currentUser}`, cardsData);
-    }, 300);
-}
-
-// ═══════════════════════════════════════════
-// Date helpers
-// ═══════════════════════════════════════════
-function formatDate(date) {
-    return date.toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-}
-function getDateKey(date) { return date.toISOString().split('T')[0]; }
-function formatDateInput(date) {
-    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-}
-
-// ═══════════════════════════════════════════
-// Toast
-// ═══════════════════════════════════════════
 function showToast(msg) {
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
+    t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2200);
+}
+function showSyncing(on) {
+    document.getElementById('syncIndicator').classList.toggle('active', on);
+}
+
+// ═══════════════════════════════════════════
+// Supabase Data Layer
+// ═══════════════════════════════════════════
+async function fetchCards() {
+    const dateKey = getDateKey(currentDate);
+    const { data: cardRows, error: cErr } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('date', dateKey)
+        .order('position');
+
+    if (cErr) { console.error('Fetch cards error:', cErr); return; }
+
+    if (cardRows.length === 0) { cards = []; return; }
+
+    const cardIds = cardRows.map(c => c.id);
+    const { data: taskRows, error: tErr } = await supabase
+        .from('tasks')
+        .select('*')
+        .in('card_id', cardIds)
+        .order('position');
+
+    if (tErr) { console.error('Fetch tasks error:', tErr); return; }
+
+    cards = cardRows.map(c => ({
+        ...c,
+        tasks: (taskRows || []).filter(t => t.card_id === c.id)
+    }));
+}
+
+async function createCard() {
+    const dateKey = getDateKey(currentDate);
+    showSyncing(true);
+    const { data, error } = await supabase
+        .from('cards')
+        .insert({ user_id: currentUser.id, date: dateKey, title: 'New Card', position: cards.length })
+        .select()
+        .single();
+    showSyncing(false);
+    if (error) { console.error(error); showToast('Error creating card'); return; }
+    data.tasks = [];
+    cards.push(data);
+    renderCards();
+}
+
+async function deleteCard(cardId) {
+    showSyncing(true);
+    await supabase.from('cards').delete().eq('id', cardId);
+    showSyncing(false);
+    cards = cards.filter(c => c.id !== cardId);
+    renderCards();
+}
+
+function updateCardTitle(cardId, title) {
+    const card = cards.find(c => c.id === cardId);
+    if (card) card.title = title;
+    debounce(`card-${cardId}`, async () => {
+        showSyncing(true);
+        await supabase.from('cards').update({ title }).eq('id', cardId);
+        showSyncing(false);
+    }, 500);
+}
+
+async function createTask(cardId) {
+    const card = cards.find(c => c.id === cardId);
+    if (!card) return;
+    showSyncing(true);
+    const { data, error } = await supabase
+        .from('tasks')
+        .insert({ card_id: cardId, user_id: currentUser.id, text: '', completed: false, position: card.tasks.length })
+        .select()
+        .single();
+    showSyncing(false);
+    if (error) { console.error(error); return; }
+    card.tasks.push(data);
+    renderCards();
+    // Focus new task
+    setTimeout(() => {
+        const inputs = document.querySelectorAll(`[data-card-id="${cardId}"] .task-text-input`);
+        const last = inputs[inputs.length - 1];
+        if (last) last.focus();
+    }, 50);
+}
+
+async function deleteTask(cardId, taskId) {
+    showSyncing(true);
+    await supabase.from('tasks').delete().eq('id', taskId);
+    showSyncing(false);
+    const card = cards.find(c => c.id === cardId);
+    if (card) card.tasks = card.tasks.filter(t => t.id !== taskId);
+    renderCards();
+}
+
+function updateTaskText(cardId, taskId, text) {
+    const card = cards.find(c => c.id === cardId);
+    if (card) {
+        const task = card.tasks.find(t => t.id === taskId);
+        if (task) task.text = text;
+    }
+    debounce(`task-text-${taskId}`, async () => {
+        showSyncing(true);
+        await supabase.from('tasks').update({ text }).eq('id', taskId);
+        showSyncing(false);
+    }, 500);
+}
+
+async function toggleTask(cardId, taskId, completed) {
+    const card = cards.find(c => c.id === cardId);
+    if (card) {
+        const task = card.tasks.find(t => t.id === taskId);
+        if (task) task.completed = completed;
+    }
+    showSyncing(true);
+    await supabase.from('tasks').update({ completed }).eq('id', taskId);
+    showSyncing(false);
+    renderCards();
+}
+
+function debounce(key, fn, ms) {
+    clearTimeout(debounceTimers[key]);
+    debounceTimers[key] = setTimeout(fn, ms);
 }
 
 // ═══════════════════════════════════════════
@@ -699,13 +619,11 @@ function showToast(msg) {
 // ═══════════════════════════════════════════
 function updateDateDisplay() {
     document.getElementById('currentDate').textContent = formatDate(currentDate);
-    document.getElementById('datePicker').value = formatDateInput(currentDate);
+    document.getElementById('datePicker').value = getDateKey(currentDate);
 }
 
 function renderCards() {
     const container = document.getElementById('cardsContainer');
-    const dk = getDateKey(currentDate);
-    const cards = cardsData[dk] || [];
 
     if (cards.length === 0) {
         container.innerHTML = `
@@ -723,120 +641,166 @@ function renderCards() {
 
         const el = document.createElement('div');
         el.className = 'card';
+        el.dataset.cardId = card.id;
         el.style.animationDelay = `${ci * 0.05}s`;
         el.innerHTML = `
             <div class="card-head">
                 <input class="card-title-input" value="${esc(card.title)}" placeholder="Card title">
                 <span class="card-count">${done}/${total}</span>
-                <button class="icon-btn danger" title="Remove card">&times;</button>
+                <button class="icon-btn danger remove-card-btn" title="Remove card">&times;</button>
             </div>
             <div class="tasks-list">
-                ${card.tasks.map((task, ti) => `
-                    <div class="task-row ${task.completed ? 'completed' : ''}">
+                ${card.tasks.map(task => `
+                    <div class="task-row ${task.completed ? 'completed' : ''}" data-task-id="${task.id}">
                         <label class="custom-check">
-                            <input type="checkbox" ${task.completed ? 'checked' : ''} data-ci="${ci}" data-ti="${ti}">
+                            <input type="checkbox" ${task.completed ? 'checked' : ''}>
                             <span class="check-visual">&#10003;</span>
                         </label>
-                        <input class="task-text-input" value="${esc(task.text)}" placeholder="Task..." data-ci="${ci}" data-ti="${ti}">
-                        <button class="icon-btn danger" data-ci="${ci}" data-ti="${ti}" title="Remove">&times;</button>
+                        <input class="task-text-input" value="${esc(task.text)}" placeholder="Task...">
+                        <button class="icon-btn danger remove-task-btn" title="Remove">&times;</button>
                     </div>
                 `).join('')}
             </div>
-            <div class="add-task-row" data-ci="${ci}">
+            <div class="add-task-row">
                 <span class="plus">+</span> Add task
             </div>
         `;
 
         // Card title
         el.querySelector('.card-title-input').addEventListener('input', e => {
-            cardsData[dk][ci].title = e.target.value;
-            scheduleSave();
+            updateCardTitle(card.id, e.target.value);
         });
 
         // Remove card
-        el.querySelector('.card-head .icon-btn').addEventListener('click', () => {
-            cardsData[dk].splice(ci, 1);
-            if (cardsData[dk].length === 0) delete cardsData[dk];
-            scheduleSave();
-            renderCards();
-        });
+        el.querySelector('.remove-card-btn').addEventListener('click', () => deleteCard(card.id));
 
         // Checkboxes
-        el.querySelectorAll('.task-row input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const c = +cb.dataset.ci, t = +cb.dataset.ti;
-                cardsData[dk][c].tasks[t].completed = cb.checked;
-                scheduleSave();
-                renderCards();
-            });
-        });
+        el.querySelectorAll('.task-row').forEach(row => {
+            const taskId = row.dataset.taskId;
+            const cb = row.querySelector('input[type="checkbox"]');
+            cb.addEventListener('change', () => toggleTask(card.id, taskId, cb.checked));
 
-        // Task text
-        el.querySelectorAll('.task-text-input').forEach(inp => {
-            inp.addEventListener('input', () => {
-                const c = +inp.dataset.ci, t = +inp.dataset.ti;
-                cardsData[dk][c].tasks[t].text = inp.value;
-                scheduleSave();
-            });
-        });
+            const textInp = row.querySelector('.task-text-input');
+            textInp.addEventListener('input', () => updateTaskText(card.id, taskId, textInp.value));
 
-        // Remove task
-        el.querySelectorAll('.task-row .icon-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const c = +btn.dataset.ci, t = +btn.dataset.ti;
-                cardsData[dk][c].tasks.splice(t, 1);
-                scheduleSave();
-                renderCards();
-            });
+            row.querySelector('.remove-task-btn').addEventListener('click', () => deleteTask(card.id, taskId));
         });
 
         // Add task
-        el.querySelector('.add-task-row').addEventListener('click', () => {
-            cardsData[dk][ci].tasks.push({ text: '', completed: false });
-            scheduleSave();
-            renderCards();
-            // Focus new input
-            setTimeout(() => {
-                const inputs = container.querySelectorAll(`.card:nth-child(${ci+1}) .task-text-input`);
-                const last = inputs[inputs.length - 1];
-                if (last) last.focus();
-            }, 50);
-        });
+        el.querySelector('.add-task-row').addEventListener('click', () => createTask(card.id));
 
         container.appendChild(el);
     });
 }
 
-function esc(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+// ═══════════════════════════════════════════
+// Date Navigation
+// ═══════════════════════════════════════════
+async function changeDate(newDate) {
+    currentDate = newDate;
+    updateDateDisplay();
+    await fetchCards();
+    renderCards();
+}
+
+// ═══════════════════════════════════════════
+// Auth
+// ═══════════════════════════════════════════
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value;
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = '';
+
+    if (!email || !pass) { errEl.textContent = 'Please fill in both fields'; return; }
+
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+    btn.disabled = false; btn.textContent = 'Sign In';
+
+    if (error) { errEl.textContent = error.message; return; }
+
+    currentUser = data.user;
+    await enterApp();
+    showToast('Welcome back!');
+}
+
+async function handleRegister() {
+    const email = document.getElementById('regEmail').value.trim();
+    const pass = document.getElementById('regPass').value;
+    const pass2 = document.getElementById('regPass2').value;
+    const errEl = document.getElementById('regError');
+    const successEl = document.getElementById('regSuccess');
+    errEl.textContent = ''; successEl.textContent = '';
+
+    if (!email || !pass) { errEl.textContent = 'Please fill in all fields'; return; }
+    if (pass.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; return; }
+    if (pass !== pass2) { errEl.textContent = "Passwords don't match"; return; }
+
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true; btn.textContent = 'Creating...';
+
+    const { data, error } = await supabase.auth.signUp({ email, password: pass });
+
+    btn.disabled = false; btn.textContent = 'Create Account';
+
+    if (error) { errEl.textContent = error.message; return; }
+
+    // If email confirmation is disabled in Supabase, user is logged in immediately
+    if (data.session) {
+        currentUser = data.user;
+        await enterApp();
+        showToast('Account created!');
+    } else {
+        // Email confirmation required
+        successEl.textContent = 'Check your email to confirm your account, then sign in.';
+    }
+}
+
+async function handleLogout() {
+    await supabase.auth.signOut();
+    currentUser = null; cards = [];
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPass').value = '';
+}
+
+async function enterApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.add('active');
+    document.getElementById('displayUser').textContent = currentUser.email;
+    currentDate = new Date();
+    updateDateDisplay();
+    await fetchCards();
+    renderCards();
 }
 
 // ═══════════════════════════════════════════
 // Init
 // ═══════════════════════════════════════════
-async function initApp() {
+async function init() {
     const loading = document.getElementById('loadingOverlay');
 
-    // Check saved session
-    try {
-        const session = await Storage.get('session');
-        if (session && session.user) {
-            currentUser = session.user;
-            await loadUserData();
-            enterApp();
-        }
-    } catch {}
+    // Check existing session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+        currentUser = session.user;
+        await enterApp();
+    }
 
     loading.classList.add('fade-out');
     setTimeout(() => loading.style.display = 'none', 300);
 
-    // ── Login/Register UI ──
+    // Auth UI toggles
     document.getElementById('showRegister').addEventListener('click', () => {
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('registerForm').style.display = 'block';
         document.getElementById('regError').textContent = '';
+        document.getElementById('regSuccess').textContent = '';
     });
     document.getElementById('showLogin').addEventListener('click', () => {
         document.getElementById('registerForm').style.display = 'none';
@@ -844,98 +808,35 @@ async function initApp() {
         document.getElementById('loginError').textContent = '';
     });
 
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-        const u = document.getElementById('loginUser').value;
-        const p = document.getElementById('loginPass').value;
-        const err = await loginUser(u, p);
-        if (err) {
-            document.getElementById('loginError').textContent = err;
-            return;
-        }
-        currentUser = u.trim().toLowerCase();
-        await Storage.set('session', { user: currentUser });
-        await loadUserData();
-        enterApp();
-        showToast('Welcome back!');
-    });
+    // Auth buttons
+    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    document.getElementById('registerBtn').addEventListener('click', handleRegister);
+    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
-    document.getElementById('registerBtn').addEventListener('click', async () => {
-        const u = document.getElementById('regUser').value;
-        const p = document.getElementById('regPass').value;
-        const p2 = document.getElementById('regPass2').value;
-        if (p !== p2) { document.getElementById('regError').textContent = 'Passwords don\'t match'; return; }
-        const err = await registerUser(u, p);
-        if (err) { document.getElementById('regError').textContent = err; return; }
-        currentUser = u.trim().toLowerCase();
-        await Storage.set('session', { user: currentUser });
-        cardsData = {};
-        enterApp();
-        showToast('Account created!');
-    });
+    // Enter key on password fields
+    document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+    document.getElementById('regPass2').addEventListener('keydown', e => { if (e.key === 'Enter') handleRegister(); });
 
-    // Enter on password fields
-    document.getElementById('loginPass').addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('loginBtn').click();
-    });
-    document.getElementById('regPass2').addEventListener('keydown', e => {
-        if (e.key === 'Enter') document.getElementById('registerBtn').click();
-    });
-
-    // ── App controls ──
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await Storage.delete('session');
-        currentUser = null;
-        cardsData = {};
-        document.getElementById('app').classList.remove('active');
-        document.getElementById('loginScreen').classList.remove('hidden');
-        document.getElementById('loginUser').value = '';
-        document.getElementById('loginPass').value = '';
-    });
-
+    // Date navigation
     document.getElementById('prevDay').addEventListener('click', () => {
-        currentDate.setDate(currentDate.getDate() - 1);
-        updateDateDisplay();
-        renderCards();
+        const d = new Date(currentDate); d.setDate(d.getDate() - 1); changeDate(d);
     });
     document.getElementById('nextDay').addEventListener('click', () => {
-        currentDate.setDate(currentDate.getDate() + 1);
-        updateDateDisplay();
-        renderCards();
+        const d = new Date(currentDate); d.setDate(d.getDate() + 1); changeDate(d);
     });
-    document.getElementById('todayBtn').addEventListener('click', () => {
-        currentDate = new Date();
-        updateDateDisplay();
-        renderCards();
-    });
+    document.getElementById('todayBtn').addEventListener('click', () => changeDate(new Date()));
     document.getElementById('calendarPicker').addEventListener('click', () => {
-        const dp = document.getElementById('datePicker');
-        dp.showPicker();
+        document.getElementById('datePicker').showPicker();
     });
     document.getElementById('datePicker').addEventListener('change', e => {
-        if (e.target.value) {
-            currentDate = new Date(e.target.value + 'T12:00:00');
-            updateDateDisplay();
-            renderCards();
-        }
+        if (e.target.value) changeDate(new Date(e.target.value + 'T12:00:00'));
     });
-    document.getElementById('addCardBtn').addEventListener('click', () => {
-        const dk = getDateKey(currentDate);
-        if (!cardsData[dk]) cardsData[dk] = [];
-        cardsData[dk].push({ title: 'New Card', tasks: [] });
-        scheduleSave();
-        renderCards();
-    });
+
+    // Add card
+    document.getElementById('addCardBtn').addEventListener('click', createCard);
 }
 
-function enterApp() {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('app').classList.add('active');
-    document.getElementById('displayUser').textContent = currentUser;
-    updateDateDisplay();
-    renderCards();
-}
-
-initApp();
+init();
 </script>
 </body>
 </html>
