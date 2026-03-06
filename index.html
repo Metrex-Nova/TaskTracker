@@ -457,10 +457,10 @@
 // ═══════════════════════════════════════════
 // CONFIG — Replace these with your Supabase project values
 // ═══════════════════════════════════════════
-const SUPABASE_URL = 'https://dfghvpvzhbruzfvpodda.supabase.co';       // e.g. https://xyzabc.supabase.co
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmZ2h2cHZ6aGJydXpmdnBvZGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTk0MDQsImV4cCI6MjA4ODM3NTQwNH0.pWOZWUmADwkJ6MZ3rpgi5o7DRi3I3YQiCAtMxi-lriE'; // from Settings > API
+const SUPABASE_URL = 'https://dfghvpvzhbruzfvpodda.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmZ2h2cHZ6aGJydXpmdnBvZGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTk0MDQsImV4cCI6MjA4ODM3NTQwNH0.pWOZWUmADwkJ6MZ3rpgi5o7DRi3I3YQiCAtMxi-lriE';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ═══════════════════════════════════════════
 // State
@@ -495,7 +495,7 @@ function showSyncing(on) {
 // ═══════════════════════════════════════════
 async function fetchCards() {
     const dateKey = getDateKey(currentDate);
-    const { data: cardRows, error: cErr } = await supabase
+    const { data: cardRows, error: cErr } = await sb
         .from('cards')
         .select('*')
         .eq('user_id', currentUser.id)
@@ -507,7 +507,7 @@ async function fetchCards() {
     if (cardRows.length === 0) { cards = []; return; }
 
     const cardIds = cardRows.map(c => c.id);
-    const { data: taskRows, error: tErr } = await supabase
+    const { data: taskRows, error: tErr } = await sb
         .from('tasks')
         .select('*')
         .in('card_id', cardIds)
@@ -524,7 +524,7 @@ async function fetchCards() {
 async function createCard() {
     const dateKey = getDateKey(currentDate);
     showSyncing(true);
-    const { data, error } = await supabase
+    const { data, error } = await sb
         .from('cards')
         .insert({ user_id: currentUser.id, date: dateKey, title: 'New Card', position: cards.length })
         .select()
@@ -538,7 +538,7 @@ async function createCard() {
 
 async function deleteCard(cardId) {
     showSyncing(true);
-    await supabase.from('cards').delete().eq('id', cardId);
+    await sb.from('cards').delete().eq('id', cardId);
     showSyncing(false);
     cards = cards.filter(c => c.id !== cardId);
     renderCards();
@@ -549,7 +549,7 @@ function updateCardTitle(cardId, title) {
     if (card) card.title = title;
     debounce(`card-${cardId}`, async () => {
         showSyncing(true);
-        await supabase.from('cards').update({ title }).eq('id', cardId);
+        await sb.from('cards').update({ title }).eq('id', cardId);
         showSyncing(false);
     }, 500);
 }
@@ -558,7 +558,7 @@ async function createTask(cardId) {
     const card = cards.find(c => c.id === cardId);
     if (!card) return;
     showSyncing(true);
-    const { data, error } = await supabase
+    const { data, error } = await sb
         .from('tasks')
         .insert({ card_id: cardId, user_id: currentUser.id, text: '', completed: false, position: card.tasks.length })
         .select()
@@ -577,7 +577,7 @@ async function createTask(cardId) {
 
 async function deleteTask(cardId, taskId) {
     showSyncing(true);
-    await supabase.from('tasks').delete().eq('id', taskId);
+    await sb.from('tasks').delete().eq('id', taskId);
     showSyncing(false);
     const card = cards.find(c => c.id === cardId);
     if (card) card.tasks = card.tasks.filter(t => t.id !== taskId);
@@ -592,7 +592,7 @@ function updateTaskText(cardId, taskId, text) {
     }
     debounce(`task-text-${taskId}`, async () => {
         showSyncing(true);
-        await supabase.from('tasks').update({ text }).eq('id', taskId);
+        await sb.from('tasks').update({ text }).eq('id', taskId);
         showSyncing(false);
     }, 500);
 }
@@ -604,7 +604,7 @@ async function toggleTask(cardId, taskId, completed) {
         if (task) task.completed = completed;
     }
     showSyncing(true);
-    await supabase.from('tasks').update({ completed }).eq('id', taskId);
+    await sb.from('tasks').update({ completed }).eq('id', taskId);
     showSyncing(false);
     renderCards();
 }
@@ -717,7 +717,7 @@ async function handleLogin() {
     const btn = document.getElementById('loginBtn');
     btn.disabled = true; btn.textContent = 'Signing in...';
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
 
     btn.disabled = false; btn.textContent = 'Sign In';
 
@@ -743,7 +743,7 @@ async function handleRegister() {
     const btn = document.getElementById('registerBtn');
     btn.disabled = true; btn.textContent = 'Creating...';
 
-    const { data, error } = await supabase.auth.signUp({ email, password: pass });
+    const { data, error } = await sb.auth.signUp({ email, password: pass });
 
     btn.disabled = false; btn.textContent = 'Create Account';
 
@@ -761,7 +761,7 @@ async function handleRegister() {
 }
 
 async function handleLogout() {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     currentUser = null; cards = [];
     document.getElementById('app').classList.remove('active');
     document.getElementById('loginScreen').classList.remove('hidden');
@@ -786,7 +786,7 @@ async function init() {
     const loading = document.getElementById('loadingOverlay');
 
     // Check existing session
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     if (session) {
         currentUser = session.user;
         await enterApp();
