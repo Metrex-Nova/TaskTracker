@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Diary</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #0a0a0c;
+            color: #e8e8ed;
+            font-family: 'DM Sans', sans-serif;
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .brand { font-family: 'Instrument Serif', serif; font-size: 26px; letter-spacing: -0.3px; }
+        .brand span { color: #c9a0ff; font-style: italic; }
+
+        .header-card { background: #111116; border: 1px solid #25252e; border-radius: 16px; padding: 18px; }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .date-navigation {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-btn, .action-btn {
+            background: linear-gradient(135deg, #2e2f38, #1f2030);
+            border: 1px solid #444;
+            color: #f4f5f7;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 14px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover, .action-btn:hover {
+            background: linear-gradient(135deg, #3f4150, #2b2c39);
+            border-color: #7b5ea7;
+            color: #fff;
+        }
+        
+        .nav-btn:hover {
+            background-color: #333;
+        }
+        
+        #datePicker {
+            background: black;
+            color: white;
+            border: 1px solid white;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 14px;
+            width: 150px;
+            text-align: center;
+        }
+        
+        .pdf-controls {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        #editor {
+            width: 100%;
+            min-height: 460px;
+            background: #111116;
+            color: #e8e8ed;
+            border: 1px solid #25252e;
+            border-radius: 12px;
+            padding: 20px;
+            font-family: 'DM Sans', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            resize: vertical;
+            outline: none;
+        }
+
+        .editor-container {
+            background: #111116;
+            border: 1px solid #25252e;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 14px;
+        }
+
+        .date-display {
+            margin-top: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            color: #c9a0ff;
+        }
+        
+        .editor-container {
+            margin-top: 20px;
+        }
+        
+        #editor {
+            width: 100%;
+            min-height: 400px;
+            background-color: #000;
+            color: #fff;
+            border: 1px solid #fff;
+            padding: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            resize: vertical;
+            outline: none;
+        }
+        
+        .empty-state {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 40px;
+            border: 1px dashed #333;
+            margin-top: 20px;
+        }
+        
+        .date-display {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .date-navigation {
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+            
+            .pdf-controls {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            #editor {
+                min-height: 300px;
+                font-size: 16px; /* Better for mobile */
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .nav-btn, #datePicker {
+                padding: 10px;
+                font-size: 16px;
+            }
+            
+            .date-navigation {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="app-header">
+            <div class="brand">Diary<span>flow</span></div>
+            <div class="date-navigation header-card">
+                <button class="nav-btn" id="prevDay">← Previous</button>
+                <input type="text" id="datePicker" placeholder="Select date">
+                <button class="nav-btn" id="nextDay">Next →</button>
+                <button class="nav-btn action-btn" id="todayPdf">Today's PDF</button>
+                <button class="nav-btn action-btn" id="monthPdf">Month's PDF</button>
+                <button class="nav-btn action-btn" id="backToTasks">Task Tracker</button>
+            </div>
+        </div>
+        <div class="date-display" id="currentDateDisplay"></div>
+    
+    <div class="editor-container">
+        <textarea id="editor" placeholder="Write your diary entry for today..."></textarea>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize variables
+        let currentDate = new Date();
+        let entries = JSON.parse(localStorage.getItem('diaryEntries') || '{}');
+
+        // Supabase setup (replace with your own values)
+        const SUPABASE_URL = 'https://dfghvpvzhbruzfvpodda.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmZ2h2cHZ6aGJydXpmdnBvZGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTk0MDQsImV4cCI6MjA4ODM3NTQwNH0.pWOZWUmADwkJ6MZ3rpgi5o7DRi3I3YQiCAtMxi-lriE';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Diary encryption state
+        let diaryPassword = '';
+
+        function bytesToBase64(buf) {
+            return btoa(String.fromCharCode(...new Uint8Array(buf)));
+        }
+        function base64ToBytes(b64) {
+            return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        }
+
+        async function deriveKey(password, salt) {
+            const enc = new TextEncoder();
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+            return crypto.subtle.deriveKey({
+                name: 'PBKDF2',
+                salt,
+                iterations: 150000,
+                hash: 'SHA-256'
+            }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        }
+
+        async function encryptDiary(text, password) {
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(password, salt);
+            const encoded = new TextEncoder().encode(text);
+            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+            return {
+                ciphertext: bytesToBase64(cipher),
+                iv: bytesToBase64(iv),
+                salt: bytesToBase64(salt)
+            };
+        }
+
+        async function decryptDiary(data, password) {
+            const salt = base64ToBytes(data.salt);
+            const iv = base64ToBytes(data.iv);
+            const cipherBytes = base64ToBytes(data.ciphertext);
+            const key = await deriveKey(password, salt);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
+            return new TextDecoder().decode(decrypted);
+        }
+
+        async function getCurrentPassword() {
+            if (diaryPassword) return diaryPassword;
+            const pw = prompt('Enter your diary encryption password (needed to save/load diary).');
+            if (!pw) {
+                alert('Password required for encrypted diary storage.');
+                throw new Error('No diary password');
+            }
+            diaryPassword = pw;
+            return diaryPassword;
+        }
+
+        async function loadDiaryFromSupabase(dateKey) {
+            try {
+                const { data, error } = await sb.from('diaries').select('*').eq('diary_date', dateKey).limit(1).single();
+                if (error) {
+                    console.warn('Supabase load error', error);
+                    return null;
+                }
+                if (!data) return null;
+                const password = await getCurrentPassword();
+                const plain = await decryptDiary({ ciphertext: data.content, iv: data.iv, salt: data.salt }, password);
+                return plain;
+            } catch (e) {
+                console.warn('Decrypt load failed', e);
+                return null;
+            }
+        }
+
+        async function saveDiaryToSupabase(dateKey, plainText) {
+            try {
+                const password = await getCurrentPassword();
+                const encrypted = await encryptDiary(plainText, password);
+                const payload = {
+                    user_id: 'anonymous',
+                    diary_date: dateKey,
+                    content: encrypted.ciphertext,
+                    iv: encrypted.iv,
+                    salt: encrypted.salt,
+                    created_at: new Date().toISOString()
+                };
+
+                const { data, error } = await sb.from('diaries').upsert(payload, { onConflict: 'diary_date' });
+                if (error) console.warn('Supabase save error', error);
+                return error == null;
+            } catch (e) {
+                console.warn('Supabase save exception', e);
+                return false;
+            }
+        }
+        
+        // Initialize date picker
+        const datePicker = flatpickr("#datePicker", {
+            dateFormat: "Y-m-d",
+            defaultDate: currentDate,
+            onChange: function(selectedDates, dateStr) {
+                if (dateStr) {
+                    currentDate = new Date(dateStr);
+                    loadEntryForDate().catch(console.error);
+                }
+            }
+        });
+        
+        // Set initial date from localStorage or use today
+        const lastDate = localStorage.getItem('lastViewedDate');
+        if (lastDate) {
+            currentDate = new Date(lastDate);
+            datePicker.setDate(currentDate, false);
+        }
+        
+        // Update date display
+        function updateDateDisplay() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateDisplay').textContent = 
+                currentDate.toLocaleDateString('en-US', options);
+        }
+        
+        // Format date as YYYY-MM-DD key
+        function getDateKey(date) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        // Load entry for current date
+        async function loadEntryForDate() {
+            const dateKey = getDateKey(currentDate);
+            let content = entries[dateKey] || '';
+            const supaContent = await loadDiaryFromSupabase(dateKey);
+            if (supaContent) {
+                content = supaContent;
+                entries[dateKey] = content;
+                localStorage.setItem('diaryEntries', JSON.stringify(entries));
+            }
+            document.getElementById('editor').value = content;
+            updateDateDisplay();
+            localStorage.setItem('lastViewedDate', dateKey);
+        }
+        
+        // Save entry with auto-save
+        async function saveEntry() {
+            const dateKey = getDateKey(currentDate);
+            const content = document.getElementById('editor').value.trim();
+
+            if (content) {
+                entries[dateKey] = content;
+            } else {
+                delete entries[dateKey];
+            }
+
+            localStorage.setItem('diaryEntries', JSON.stringify(entries));
+            await saveDiaryToSupabase(dateKey, content || '');
+        }
+        
+        // Navigation functions
+        function navigateDays(days) {
+            currentDate.setDate(currentDate.getDate() + days);
+            datePicker.setDate(currentDate, false);
+            loadEntryForDate().catch(console.error);
+        }
+        
+        // PDF Generation functions
+        async function getEntryText(dateKey) {
+            if (entries[dateKey]) return entries[dateKey];
+            const supaContent = await loadDiaryFromSupabase(dateKey);
+            if (supaContent) {
+                entries[dateKey] = supaContent;
+                localStorage.setItem('diaryEntries', JSON.stringify(entries));
+                return supaContent;
+            }
+            return '';
+        }
+
+        async function generateTodayPDF() {
+            const dateKey = getDateKey(currentDate);
+            const content = await getEntryText(dateKey);
+            
+            if (!content) {
+                alert('No entry for today to generate PDF');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Minimal margins
+            const margin = 10;
+            let yPos = margin;
+            
+            // Add date as heading
+            doc.setFontSize(16);
+            doc.text(currentDate.toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            }), margin, yPos);
+            
+            yPos += 10;
+            
+            // Add content
+            doc.setFontSize(11);
+            const lines = doc.splitTextToSize(content, 190); // 190mm width for A4
+            doc.text(lines, margin, yPos);
+            
+            doc.save(`diary-${dateKey}.pdf`);
+        }
+        
+        async function generateMonthPDF() {
+            const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+            // Try load month entries from Supabase too, to ensure all data is included
+            const { data: dbEntries, error: dbError } = await sb.from('diaries')
+                .select('diary_date, content, iv, salt')
+                .gte('diary_date', monthStart.toISOString().split('T')[0])
+                .lte('diary_date', monthEnd.toISOString().split('T')[0]);
+
+            if (dbError && dbError.code !== 'PGRST116') {
+                console.warn('Supabase month load warning', dbError);
+            }
+
+            const monthEntries = [];
+            for (let date = new Date(monthStart); date <= monthEnd; date.setDate(date.getDate() + 1)) {
+                const dateKey = getDateKey(date);
+                let text = entries[dateKey] || '';
+
+                if (!text && dbEntries) {
+                    const row = dbEntries.find(r => r.diary_date === dateKey);
+                    if (row) {
+                        try {
+                            text = await decryptDiary({ ciphertext: row.content, iv: row.iv, salt: row.salt }, await getCurrentPassword());
+                            entries[dateKey] = text;
+                            localStorage.setItem('diaryEntries', JSON.stringify(entries));
+                        } catch (err) {
+                            console.warn('Could not decrypt row', dateKey, err);
+                        }
+                    }
+                }
+
+                if (text) {
+                    monthEntries.push({date: new Date(date), content: text});
+                }
+            }
+            
+            if (monthEntries.length === 0) {
+                alert('No entries for this month to generate PDF');
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const margin = 10;
+            let yPos = margin;
+            const pageHeight = doc.internal.pageSize.height;
+            
+            monthEntries.forEach((entry, index) => {
+                // Add new page if needed (except for first entry)
+                if (index > 0 && yPos > pageHeight - 50) {
+                    doc.addPage();
+                    yPos = margin;
+                }
+                
+                // Add date heading
+                doc.setFontSize(14);
+                const dateStr = entry.date.toLocaleDateString('en-US', { 
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                });
+                doc.text(dateStr, margin, yPos);
+                yPos += 8;
+                
+                // Add content
+                doc.setFontSize(10);
+                const lines = doc.splitTextToSize(entry.content, 190);
+                doc.text(lines, margin, yPos);
+                yPos += (lines.length * 6) + 15;
+            });
+            
+            const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            doc.save(`diary-${monthName.toLowerCase().replace(' ', '-')}.pdf`);
+        }
+        
+        // Event Listeners
+        document.getElementById('prevDay').addEventListener('click', () => navigateDays(-1));
+        document.getElementById('nextDay').addEventListener('click', () => navigateDays(1));
+        document.getElementById('todayPdf').addEventListener('click', generateTodayPDF);
+        document.getElementById('monthPdf').addEventListener('click', generateMonthPDF);
+        
+        // Auto-save with debouncing
+        let saveTimeout;
+        document.getElementById('editor').addEventListener('input', () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveEntry, 1000);
+        });
+        
+        // Initialize
+        updateDateDisplay();
+        loadEntryForDate().catch(console.error);
+
+        document.getElementById('backToTasks').addEventListener('click', () => {
+            window.location.href = 'TaskTracker.html';
+        });
+
+        // Save on page unload
+        window.addEventListener('beforeunload', () => {
+            saveEntry().catch(console.error);
+        });
+        
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 's') {
+                    e.preventDefault();
+                    saveEntry();
+                }
+            } else if (e.key === 'ArrowLeft' && !e.target.matches('textarea')) {
+                navigateDays(-1);
+            } else if (e.key === 'ArrowRight' && !e.target.matches('textarea')) {
+                navigateDays(1);
+            }
+        });
+    </script>
+</body>
+</html>
