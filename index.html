@@ -509,7 +509,51 @@ let currentUser = null;
 let currentDate = new Date();
 let cards = [];      // [{id, title, position, tasks: [{id, text, completed, position, time_sessions: [{start, duration}]}]}]
 let debounceTimers = {};
-let runningTimers = {}; // {taskId: intervalId}
+let runningTimers = {}; // {taskId: {intervalId, startTime}}
+let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+
+function saveQueue() {
+    localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+}
+
+async function flushQueue() {
+    if (!navigator.onLine || offlineQueue.length === 0) return;
+    const pending = [...offlineQueue];
+    offlineQueue = [];
+    saveQueue();
+    for (const op of pending) {
+        try {
+            if (op.type === 'update') {
+                await sb.from(op.table).update(op.data).eq('id', op.id);
+            } else if (op.type === 'insert') {
+                await sb.from(op.table).insert(op.data);
+            } else if (op.type === 'delete') {
+                await sb.from(op.table).delete().eq('id', op.id);
+            }
+        } catch (e) {
+            offlineQueue.unshift(op); // put back on failure
+            saveQueue();
+            break;
+        }
+    }
+    if (offlineQueue.length === 0 && pending.length > 0) showToast('Synced offline changes');
+}
+
+async function dbUpdate(table, id, data) {
+    if (!navigator.onLine) {
+        offlineQueue.push({ type: 'update', table, id, data });
+        saveQueue();
+        return;
+    }
+    showSyncing(true);
+    await sb.from(table).update(data).eq('id', id);
+    showSyncing(false);
+}
+
+window.addEventListener('online', () => {
+    showToast('Back online — syncing...');
+    flushQueue();
+});
 
 // ═══════════════════════════════════════════
 // Helpers
@@ -592,11 +636,7 @@ async function deleteCard(cardId) {
 function updateCardTitle(cardId, title) {
     const card = cards.find(c => c.id === cardId);
     if (card) card.title = title;
-    debounce(`card-${cardId}`, async () => {
-        showSyncing(true);
-        await sb.from('cards').update({ title }).eq('id', cardId);
-        showSyncing(false);
-    }, 500);
+    debounce(`card-${cardId}`, () => dbUpdate('cards', cardId, { title }), 500);
 }
 
 async function createTask(cardId) {
@@ -637,11 +677,7 @@ function updateTaskText(cardId, taskId, text) {
         const task = card.tasks.find(t => t.id === taskId);
         if (task) task.text = text;
     }
-    debounce(`task-text-${taskId}`, async () => {
-        showSyncing(true);
-        await sb.from('tasks').update({ text }).eq('id', taskId);
-        showSyncing(false);
-    }, 500);
+    debounce(`task-text-${taskId}`, () => dbUpdate('tasks', taskId, { text }), 500);
 }
 
 async function toggleTask(cardId, taskId, completed) {
@@ -665,9 +701,7 @@ async function toggleTask(cardId, taskId, completed) {
         card_el.querySelector('.card-count').textContent = `${done}/${total}`;
     }
 
-    showSyncing(true);
-    await sb.from('tasks').update({ completed }).eq('id', taskId);
-    showSyncing(false);
+    await dbUpdate('tasks', taskId, { completed });
 }
 
 function debounce(key, fn, ms) {
@@ -675,20 +709,28 @@ function debounce(key, fn, ms) {
     debounceTimers[key] = setTimeout(fn, ms);
 }
 
-function startTimer(cardId, taskId, displayDiv, startBtn) {
+function persistRunningTimers() {
+    const toSave = {};
+    for (const [taskId, timer] of Object.entries(runningTimers)) {
+        toSave[taskId] = { startTime: timer.startTime, cardId: timer.cardId };
+    }
+    localStorage.setItem('runningTimers', JSON.stringify(toSave));
+}
+
+function startTimer(cardId, taskId, displayDiv, startBtn, existingStartTime) {
     const card = cards.find(c => c.id === cardId);
     const task = card?.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    let elapsedSeconds = 0;
-    const startTime = Date.now();
+    const startTime = existingStartTime || Date.now();
 
     const intervalId = setInterval(() => {
-        elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
         displayDiv.textContent = `Timer: ${formatTime(elapsedSeconds)}`;
     }, 100);
 
-    runningTimers[taskId] = { intervalId, elapsedSeconds };
+    runningTimers[taskId] = { intervalId, startTime, cardId };
+    persistRunningTimers();
     startBtn.textContent = '⏸ Stop';
     startBtn.classList.add('running');
 }
@@ -698,8 +740,9 @@ function stopTimer(cardId, taskId) {
     if (!timer) return;
 
     clearInterval(timer.intervalId);
-    const elapsedSeconds = timer.elapsedSeconds;
+    const elapsedSeconds = Math.floor((Date.now() - timer.startTime) / 1000);
     delete runningTimers[taskId];
+    persistRunningTimers();
 
     const card = cards.find(c => c.id === cardId);
     const task = card?.tasks.find(t => t.id === taskId);
@@ -722,10 +765,7 @@ function stopTimer(cardId, taskId) {
     }
 
     // Save to database
-    showSyncing(true);
-    sb.from('tasks').update({ time_sessions: task.time_sessions }).eq('id', taskId).then(() => {
-        showSyncing(false);
-    });
+    dbUpdate('tasks', taskId, { time_sessions: task.time_sessions });
 }
 
 async function moveTask(fromCardId, taskId, toCardId, beforeTaskId) {
@@ -894,12 +934,12 @@ function createTimerUI(card, task) {
     const startBtn = document.createElement('button');
     startBtn.className = `timer-btn ${isRunning ? 'running' : ''}`;
     startBtn.textContent = isRunning ? '⏸ Stop' : '⏱ Start';
-    startBtn.addEventListener('click', async () => {
+    startBtn.addEventListener('click', () => {
         if (task.completed) {
             showToast('Task is already complete');
             return;
         }
-        if (isRunning) {
+        if (runningTimers[task.id]) {
             stopTimer(card.id, task.id);
         } else {
             startTimer(card.id, task.id, displayDiv, startBtn);
@@ -1247,6 +1287,21 @@ async function handleLogout() {
     document.getElementById('loginPass').value = '';
 }
 
+function restoreRunningTimers() {
+    const saved = localStorage.getItem('runningTimers');
+    if (!saved) return;
+    let savedTimers;
+    try { savedTimers = JSON.parse(saved); } catch { return; }
+    for (const [taskId, { startTime, cardId }] of Object.entries(savedTimers)) {
+        const timerSection = document.querySelector(`.timer-section[data-task-id="${taskId}"]`);
+        if (!timerSection) continue;
+        const displayDiv = timerSection.querySelector('.timer-display');
+        const startBtn = timerSection.querySelector('.timer-btn');
+        if (!displayDiv || !startBtn) continue;
+        startTimer(cardId, taskId, displayDiv, startBtn, startTime);
+    }
+}
+
 async function enterApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('app').classList.add('active');
@@ -1255,6 +1310,7 @@ async function enterApp() {
     updateDateDisplay();
     await fetchCards();
     renderCards();
+    restoreRunningTimers();
 }
 
 // ═══════════════════════════════════════════
@@ -1321,6 +1377,94 @@ async function init() {
     // Export PDF
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
 }
+
+// ═══════════════════════════════════════════
+// Mobile Touch Drag & Drop
+// ═══════════════════════════════════════════
+(function setupTouchDragDrop() {
+    let touchDragInfo = null;   // { cardId, taskId }
+    let ghostEl = null;
+    let lastDropTarget = null;
+
+    function getTaskRowFromPoint(x, y) {
+        const els = document.elementsFromPoint(x, y);
+        for (const el of els) {
+            const row = el.closest('.task-row');
+            if (row && row !== ghostEl) return row;
+        }
+        return null;
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        const row = e.target.closest('.task-row[draggable="true"]');
+        if (!row) return;
+        // Only initiate drag on long press (300ms)
+        const touch = e.touches[0];
+        let moved = false;
+        let timer = setTimeout(() => {
+            if (moved) return;
+            const cardEl = row.closest('.card');
+            if (!cardEl) return;
+            touchDragInfo = {
+                cardId: cardEl.dataset.cardId,
+                taskId: row.dataset.taskId
+            };
+            // Create ghost
+            ghostEl = row.cloneNode(true);
+            ghostEl.style.cssText = `position:fixed;z-index:9999;opacity:0.8;pointer-events:none;
+                width:${row.offsetWidth}px;left:${touch.clientX - row.offsetWidth/2}px;
+                top:${touch.clientY - row.offsetHeight/2}px;background:var(--surface2);
+                border-radius:8px;border:1px solid var(--accent-dim);`;
+            document.body.appendChild(ghostEl);
+            row.style.opacity = '0.3';
+            if (navigator.vibrate) navigator.vibrate(30);
+        }, 300);
+
+        row.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); }, { once: true });
+        row.addEventListener('touchend', () => clearTimeout(timer), { once: true });
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+        if (!touchDragInfo || !ghostEl) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        ghostEl.style.left = `${touch.clientX - ghostEl.offsetWidth/2}px`;
+        ghostEl.style.top = `${touch.clientY - ghostEl.offsetHeight/2}px`;
+
+        // Highlight drop target
+        const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
+        if (lastDropTarget && lastDropTarget !== target) {
+            lastDropTarget.classList.remove('drag-over');
+        }
+        if (target && target.dataset.taskId !== touchDragInfo.taskId) {
+            target.classList.add('drag-over');
+            lastDropTarget = target;
+        }
+    }, { passive: false });
+
+    document.addEventListener('touchend', async (e) => {
+        if (!touchDragInfo || !ghostEl) return;
+        const touch = e.changedTouches[0];
+
+        if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+        if (lastDropTarget) { lastDropTarget.classList.remove('drag-over'); }
+
+        // Restore opacity of dragged row
+        const srcRow = document.querySelector(`.task-row[data-task-id="${touchDragInfo.taskId}"]`);
+        if (srcRow) srcRow.style.opacity = '';
+
+        const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
+        if (target && target.dataset.taskId !== touchDragInfo.taskId) {
+            const toCardEl = target.closest('.card');
+            if (toCardEl) {
+                await moveTask(touchDragInfo.cardId, touchDragInfo.taskId, toCardEl.dataset.cardId, target.dataset.taskId);
+            }
+        }
+
+        touchDragInfo = null;
+        lastDropTarget = null;
+    });
+})();
 
 init();
 </script>
