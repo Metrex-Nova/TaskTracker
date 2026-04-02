@@ -341,33 +341,15 @@
             font-size: 13px; flex-shrink: 0;
         }
 
-        .timer-section {
-            margin-top: 8px; padding: 8px 10px;
-            background: var(--bg); border-radius: 6px;
-            font-size: 12px; color: var(--text-muted);
+        .card-drag-handle, .task-drag-handle {
+            cursor: grab; color: var(--text-muted); font-size: 16px;
+            padding: 2px 4px; border-radius: 4px; flex-shrink: 0;
+            user-select: none; line-height: 1; touch-action: none;
         }
-        .timer-display {
-            font-family: 'DM Sans', monospace;
-            color: var(--accent); font-weight: 500;
-            margin-bottom: 6px;
-        }
-        .timer-btns { display: flex; gap: 6px; }
-        .timer-btn {
-            background: var(--surface); border: 1px solid var(--border);
-            color: var(--text-dim); padding: 4px 10px;
-            border-radius: 4px; font-size: 11px; cursor: pointer;
-            transition: all 0.15s; flex: 1;
-        }
-        .timer-btn:hover { border-color: var(--border-hover); color: var(--text); }
-        .timer-btn.running { background: rgba(201,160,255,0.2); color: var(--accent); border-color: var(--accent-dim); }
-        .sessions-list {
-            margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border);
-            font-size: 11px; color: var(--text-muted);
-        }
-        .session-item {
-            display: flex; justify-content: space-between;
-            padding: 3px 0;
-        }
+        .card-drag-handle:hover, .task-drag-handle:hover { color: var(--text-dim); background: var(--surface2); }
+        .card-drag-handle:active, .task-drag-handle:active { cursor: grabbing; }
+        .card.card-dragging { opacity: 0.4; }
+        .card.card-drag-over { border-color: var(--accent-dim); box-shadow: 0 0 0 2px var(--accent-glow); }
 
         .empty-state {
             grid-column: 1 / -1; text-align: center;
@@ -470,6 +452,7 @@
             <div class="user-info">
                 <div class="user-badge"><span class="dot"></span> <span id="displayUser"></span></div>
                 <button class="action-btn" id="diaryBtn" style="font-size:12px; padding:6px 10px;">Diary</button>
+                <button class="action-btn" id="meditationBtn" style="font-size:12px; padding:6px 10px;">🕉 Meditation</button>
                 <button class="logout-btn" id="logoutBtn">Sign out</button>
             </div>
         </div>
@@ -507,9 +490,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ═══════════════════════════════════════════
 let currentUser = null;
 let currentDate = new Date();
-let cards = [];      // [{id, title, position, tasks: [{id, text, completed, position, time_sessions: [{start, duration}]}]}]
+let cards = [];      // [{id, title, position, tasks: [{id, text, completed, position}]}]
 let debounceTimers = {};
-let runningTimers = {}; // {taskId: {intervalId, startTime}}
 let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
 
 function saveQueue() {
@@ -602,10 +584,7 @@ async function fetchCards() {
 
     cards = cardRows.map(c => ({
         ...c,
-        tasks: (taskRows || []).filter(t => t.card_id === c.id).map(t => ({
-            ...t,
-            time_sessions: t.time_sessions || []
-        }))
+        tasks: (taskRows || []).filter(t => t.card_id === c.id)
     }));
 }
 
@@ -650,7 +629,6 @@ async function createTask(cardId) {
         .single();
     showSyncing(false);
     if (error) { console.error(error); showToast('Error creating task'); return; }
-    data.time_sessions = [];
     card.tasks.push(data);
     // Add task to DOM without full re-render
     appendTask(card, data, card.tasks.length - 1);
@@ -709,64 +687,6 @@ function debounce(key, fn, ms) {
     debounceTimers[key] = setTimeout(fn, ms);
 }
 
-function persistRunningTimers() {
-    const toSave = {};
-    for (const [taskId, timer] of Object.entries(runningTimers)) {
-        toSave[taskId] = { startTime: timer.startTime, cardId: timer.cardId };
-    }
-    localStorage.setItem('runningTimers', JSON.stringify(toSave));
-}
-
-function startTimer(cardId, taskId, displayDiv, startBtn, existingStartTime) {
-    const card = cards.find(c => c.id === cardId);
-    const task = card?.tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const startTime = existingStartTime || Date.now();
-
-    const intervalId = setInterval(() => {
-        const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-        displayDiv.textContent = `Timer: ${formatTime(elapsedSeconds)}`;
-    }, 100);
-
-    runningTimers[taskId] = { intervalId, startTime, cardId };
-    persistRunningTimers();
-    startBtn.textContent = '⏸ Stop';
-    startBtn.classList.add('running');
-}
-
-function stopTimer(cardId, taskId) {
-    const timer = runningTimers[taskId];
-    if (!timer) return;
-
-    clearInterval(timer.intervalId);
-    const elapsedSeconds = Math.floor((Date.now() - timer.startTime) / 1000);
-    delete runningTimers[taskId];
-    persistRunningTimers();
-
-    const card = cards.find(c => c.id === cardId);
-    const task = card?.tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    // Add session
-    if (!task.time_sessions) task.time_sessions = [];
-    task.time_sessions.push({ duration: elapsedSeconds });
-
-    // Update UI
-    const timerSection = document.querySelector(`.timer-section[data-task-id="${taskId}"]`);
-    if (timerSection) {
-        timerSection.remove();
-    }
-
-    const taskRow = document.querySelector(`[data-task-id="${taskId}"]`);
-    if (taskRow) {
-        const timerUI = createTimerUI(card, task);
-        taskRow.parentNode.insertBefore(timerUI, taskRow.nextSibling);
-    }
-
-    // Save to database
-    dbUpdate('tasks', taskId, { time_sessions: task.time_sessions });
-}
 
 async function moveTask(fromCardId, taskId, toCardId, beforeTaskId) {
     const fromCard = cards.find(c => c.id === fromCardId);
@@ -826,17 +746,11 @@ function renderTasksInCard(cardId) {
     if (!tasksList) return;
 
     // Clear existing tasks
-    const taskRows = tasksList.querySelectorAll('.task-row');
-    const timerSections = tasksList.querySelectorAll('.timer-section');
-    taskRows.forEach(row => row.remove());
-    timerSections.forEach(timer => timer.remove());
+    tasksList.querySelectorAll('.task-row').forEach(row => row.remove());
 
     // Re-append all tasks
     card.tasks.forEach((task, idx) => {
-        const taskRow = createTaskElement(card, task, idx);
-        tasksList.appendChild(taskRow);
-        const timerUI = createTimerUI(card, task);
-        tasksList.appendChild(timerUI);
+        tasksList.appendChild(createTaskElement(card, task, idx));
     });
 }
 
@@ -844,27 +758,12 @@ function renderTasksInCard(cardId) {
 // Render
 // ═══════════════════════════════════════════
 
-function formatTime(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) return `${hrs}h ${mins}m`;
-    if (mins > 0) return `${mins}m ${secs}s`;
-    return `${secs}s`;
-}
-
-function getTotalSessionTime(timeSessions) {
-    if (!timeSessions || !Array.isArray(timeSessions)) return 0;
-    return timeSessions.reduce((sum, session) => sum + (session.duration || 0), 0);
-}
-
 function createTaskElement(card, task, taskIndex) {
-    const totalTime = getTotalSessionTime(task.time_sessions);
     const taskEl = document.createElement('div');
     taskEl.className = `task-row ${task.completed ? 'completed' : ''}`;
     taskEl.dataset.taskId = task.id;
-    taskEl.draggable = true;
     taskEl.innerHTML = `
+        <span class="task-drag-handle" title="Drag to reorder">⠿</span>
         <label class="custom-check">
             <input type="checkbox" ${task.completed ? 'checked' : ''}>
             <span class="check-visual">&#10003;</span>
@@ -882,32 +781,39 @@ function createTaskElement(card, task, taskIndex) {
 
     taskEl.querySelector('.remove-task-btn').addEventListener('click', () => deleteTask(card.id, task.id));
 
-    // Drag and drop
-    taskEl.addEventListener('dragstart', (e) => {
+    // Only the handle itself is draggable — never the task row element
+    const dragHandle = taskEl.querySelector('.task-drag-handle');
+    dragHandle.draggable = true;
+
+    dragHandle.addEventListener('dragstart', (e) => {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('taskInfo', JSON.stringify({ cardId: card.id, taskId: task.id }));
-        taskEl.classList.add('dragging');
+        e.stopPropagation();
+        setTimeout(() => taskEl.classList.add('dragging'), 0);
     });
 
-    taskEl.addEventListener('dragend', () => {
+    dragHandle.addEventListener('dragend', () => {
         taskEl.classList.remove('dragging');
         document.querySelectorAll('.task-row').forEach(t => t.classList.remove('drag-over'));
     });
 
+    // Task row is only a drop TARGET, never a drag source
     taskEl.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes('taskinfo')) return;
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = 'move';
-        if (!taskEl.classList.contains('dragging')) {
-            taskEl.classList.add('drag-over');
-        }
+        if (!taskEl.classList.contains('dragging')) taskEl.classList.add('drag-over');
     });
 
-    taskEl.addEventListener('dragleave', () => {
-        taskEl.classList.remove('drag-over');
+    taskEl.addEventListener('dragleave', (e) => {
+        if (!taskEl.contains(e.relatedTarget)) taskEl.classList.remove('drag-over');
     });
 
     taskEl.addEventListener('drop', async (e) => {
+        if (!e.dataTransfer.types.includes('taskinfo')) return;
         e.preventDefault();
+        e.stopPropagation();
         taskEl.classList.remove('drag-over');
         const taskInfo = JSON.parse(e.dataTransfer.getData('taskInfo'));
         await moveTask(taskInfo.cardId, taskInfo.taskId, card.id, task.id);
@@ -916,57 +822,26 @@ function createTaskElement(card, task, taskIndex) {
     return taskEl;
 }
 
-function createTimerUI(card, task) {
-    const timerDiv = document.createElement('div');
-    timerDiv.className = 'timer-section';
-    timerDiv.dataset.taskId = task.id;
 
-    const totalTime = getTotalSessionTime(task.time_sessions);
-    const isRunning = runningTimers[task.id] !== undefined;
-
-    const displayDiv = document.createElement('div');
-    displayDiv.className = 'timer-display';
-    displayDiv.textContent = `Total: ${formatTime(totalTime)}`;
-
-    const btnContainer = document.createElement('div');
-    btnContainer.className = 'timer-btns';
-
-    const startBtn = document.createElement('button');
-    startBtn.className = `timer-btn ${isRunning ? 'running' : ''}`;
-    startBtn.textContent = isRunning ? '⏸ Stop' : '⏱ Start';
-    startBtn.addEventListener('click', () => {
-        if (task.completed) {
-            showToast('Task is already complete');
-            return;
-        }
-        if (runningTimers[task.id]) {
-            stopTimer(card.id, task.id);
-        } else {
-            startTimer(card.id, task.id, displayDiv, startBtn);
-        }
+function setupTasksListDrop(tasksList, cardId) {
+    tasksList.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes('taskinfo')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tasksList.classList.add('drag-over');
     });
-
-    btnContainer.appendChild(startBtn);
-
-    // Sessions list
-    const sessionsList = document.createElement('div');
-    sessionsList.className = 'sessions-list';
-    if (task.time_sessions && task.time_sessions.length > 0) {
-        task.time_sessions.forEach((session, idx) => {
-            const item = document.createElement('div');
-            item.className = 'session-item';
-            item.innerHTML = `<span>Session ${idx + 1}:</span><span>${formatTime(session.duration)}</span>`;
-            sessionsList.appendChild(item);
-        });
-    } else {
-        sessionsList.textContent = 'No sessions yet';
-    }
-
-    timerDiv.appendChild(displayDiv);
-    timerDiv.appendChild(btnContainer);
-    timerDiv.appendChild(sessionsList);
-
-    return timerDiv;
+    tasksList.addEventListener('dragleave', (e) => {
+        if (!tasksList.contains(e.relatedTarget)) tasksList.classList.remove('drag-over');
+    });
+    tasksList.addEventListener('drop', async (e) => {
+        tasksList.classList.remove('drag-over');
+        const raw = e.dataTransfer.getData('taskInfo');
+        if (!raw) return;
+        e.preventDefault();
+        const taskInfo = JSON.parse(raw);
+        // Append to end of this card (null = no beforeTaskId)
+        await moveTask(taskInfo.cardId, taskInfo.taskId, cardId, null);
+    });
 }
 
 function appendCard(card) {
@@ -986,6 +861,7 @@ function appendCard(card) {
     const headDiv = document.createElement('div');
     headDiv.className = 'card-head';
     headDiv.innerHTML = `
+        <span class="card-drag-handle" title="Drag to reorder">⠿</span>
         <input class="card-title-input" value="${esc(card.title)}" placeholder="Card title">
         <span class="card-count">${done}/${total}</span>
         <button class="icon-btn danger remove-card-btn" title="Remove card">&times;</button>
@@ -1002,10 +878,7 @@ function appendCard(card) {
     tasksList.dataset.cardId = card.id;
 
     card.tasks.forEach((task, idx) => {
-        const taskRow = createTaskElement(card, task, idx);
-        tasksList.appendChild(taskRow);
-        const timerUI = createTimerUI(card, task);
-        tasksList.appendChild(timerUI);
+        tasksList.appendChild(createTaskElement(card, task, idx));
     });
 
     const addTaskRow = document.createElement('div');
@@ -1014,8 +887,10 @@ function appendCard(card) {
     addTaskRow.addEventListener('click', () => createTask(card.id));
     tasksList.appendChild(addTaskRow);
 
+    setupTasksListDrop(tasksList, card.id);
     el.appendChild(tasksList);
 
+    setupCardDragEvents(el, card.id);
     container.appendChild(el);
 }
 
@@ -1024,16 +899,13 @@ function appendTask(card, task, taskIndex) {
     if (!tasksList) return;
 
     const taskRow = createTaskElement(card, task, taskIndex);
-    const timerUI = createTimerUI(card, task);
-    
+
     // Insert before the "Add task" row
     const addTaskRow = tasksList.querySelector('.add-task-row');
     if (addTaskRow) {
         tasksList.insertBefore(taskRow, addTaskRow);
-        tasksList.insertBefore(timerUI, addTaskRow);
     } else {
         tasksList.appendChild(taskRow);
-        tasksList.appendChild(timerUI);
     }
 
     // Update card count
@@ -1075,6 +947,7 @@ function renderCards() {
         const headDiv = document.createElement('div');
         headDiv.className = 'card-head';
         headDiv.innerHTML = `
+            <span class="card-drag-handle" title="Drag to reorder">⠿</span>
             <input class="card-title-input" value="${esc(card.title)}" placeholder="Card title">
             <span class="card-count">${done}/${total}</span>
             <button class="icon-btn danger remove-card-btn" title="Remove card">&times;</button>
@@ -1091,10 +964,7 @@ function renderCards() {
         tasksList.dataset.cardId = card.id;
 
         card.tasks.forEach((task, idx) => {
-            const taskRow = createTaskElement(card, task, idx);
-            tasksList.appendChild(taskRow);
-            const timerUI = createTimerUI(card, task);
-            tasksList.appendChild(timerUI);
+            tasksList.appendChild(createTaskElement(card, task, idx));
         });
 
         const addTaskRow = document.createElement('div');
@@ -1103,8 +973,10 @@ function renderCards() {
         addTaskRow.addEventListener('click', () => createTask(card.id));
         tasksList.appendChild(addTaskRow);
 
+        setupTasksListDrop(tasksList, card.id);
         el.appendChild(tasksList);
 
+        setupCardDragEvents(el, card.id);
         container.appendChild(el);
     });
 }
@@ -1164,25 +1036,7 @@ async function exportPDF() {
             }
 
             const text = task.completed ? `${task.text} [COMPLETED]` : task.text;
-            const totalTime = getTotalSessionTime(task.time_sessions);
-            const timeStr = totalTime > 0 ? ` (${formatTime(totalTime)})` : '';
-
-            li.innerHTML = `<strong>${idx + 1}.</strong> ${text}${timeStr}`;
-
-            // Add sessions if any
-            if (task.time_sessions && task.time_sessions.length > 0) {
-                const sessionsList = document.createElement('ul');
-                sessionsList.style.marginLeft = '20px';
-                sessionsList.style.fontSize = '12px';
-                sessionsList.style.color = '#666666';
-                task.time_sessions.forEach((session, sIdx) => {
-                    const sessionLi = document.createElement('li');
-                    sessionLi.textContent = `Session ${sIdx + 1}: ${formatTime(session.duration)}`;
-                    sessionsList.appendChild(sessionLi);
-                });
-                li.appendChild(sessionsList);
-            }
-
+            li.innerHTML = `<strong>${idx + 1}.</strong> ${text}`;
             tasksList.appendChild(li);
         });
 
@@ -1287,20 +1141,6 @@ async function handleLogout() {
     document.getElementById('loginPass').value = '';
 }
 
-function restoreRunningTimers() {
-    const saved = localStorage.getItem('runningTimers');
-    if (!saved) return;
-    let savedTimers;
-    try { savedTimers = JSON.parse(saved); } catch { return; }
-    for (const [taskId, { startTime, cardId }] of Object.entries(savedTimers)) {
-        const timerSection = document.querySelector(`.timer-section[data-task-id="${taskId}"]`);
-        if (!timerSection) continue;
-        const displayDiv = timerSection.querySelector('.timer-display');
-        const startBtn = timerSection.querySelector('.timer-btn');
-        if (!displayDiv || !startBtn) continue;
-        startTimer(cardId, taskId, displayDiv, startBtn, startTime);
-    }
-}
 
 async function enterApp() {
     document.getElementById('loginScreen').classList.add('hidden');
@@ -1310,7 +1150,6 @@ async function enterApp() {
     updateDateDisplay();
     await fetchCards();
     renderCards();
-    restoreRunningTimers();
 }
 
 // ═══════════════════════════════════════════
@@ -1374,15 +1213,83 @@ async function init() {
         window.location.href = 'Diary.html';
     });
 
+    // Meditation redirect
+    document.getElementById('meditationBtn').addEventListener('click', () => {
+        window.location.href = 'Meditation.html';
+    });
+
     // Export PDF
     document.getElementById('exportPdfBtn').addEventListener('click', exportPDF);
+}
+
+// ═══════════════════════════════════════════
+// Card Drag & Drop
+// ═══════════════════════════════════════════
+async function moveCard(fromCardId, toCardId) {
+    if (fromCardId === toCardId) return;
+    const fromIdx = cards.findIndex(c => c.id === fromCardId);
+    const toIdx = cards.findIndex(c => c.id === toCardId);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    // Reorder in state
+    const [moved] = cards.splice(fromIdx, 1);
+    cards.splice(toIdx, 0, moved);
+
+    // Update positions in DB
+    showSyncing(true);
+    await Promise.all(cards.map((c, idx) => sb.from('cards').update({ position: idx }).eq('id', c.id)));
+    showSyncing(false);
+
+    renderCards();
+}
+
+function setupCardDragEvents(el, cardId) {
+    const handle = el.querySelector('.card-drag-handle');
+    if (!handle) return;
+
+    // Only the handle itself is draggable — never the card element
+    handle.draggable = true;
+
+    handle.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('cardId', cardId);
+        e.stopPropagation();
+        setTimeout(() => el.classList.add('card-dragging'), 0);
+    });
+
+    handle.addEventListener('dragend', () => {
+        el.classList.remove('card-dragging');
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('card-drag-over'));
+    });
+
+    // Card element is only a drop TARGET, never a drag source
+    el.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer.types.includes('cardid')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!el.classList.contains('card-dragging')) el.classList.add('card-drag-over');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+        if (!el.contains(e.relatedTarget)) el.classList.remove('card-drag-over');
+    });
+
+    el.addEventListener('drop', async (e) => {
+        if (!e.dataTransfer.types.includes('cardid')) return;
+        e.preventDefault();
+        el.classList.remove('card-drag-over');
+        const fromCardId = e.dataTransfer.getData('cardId');
+        if (fromCardId && fromCardId !== cardId) await moveCard(fromCardId, cardId);
+    });
 }
 
 // ═══════════════════════════════════════════
 // Mobile Touch Drag & Drop
 // ═══════════════════════════════════════════
 (function setupTouchDragDrop() {
-    let touchDragInfo = null;   // { cardId, taskId }
+    // dragMode: 'task' | 'card' | null
+    let dragMode = null;
+    let touchDragInfo = null;   // { cardId, taskId } for tasks  /  { cardId } for cards
     let ghostEl = null;
     let lastDropTarget = null;
 
@@ -1395,27 +1302,60 @@ async function init() {
         return null;
     }
 
+    function getCardFromPoint(x, y) {
+        const els = document.elementsFromPoint(x, y);
+        for (const el of els) {
+            const card = el.closest('.card');
+            if (card && card !== ghostEl) return card;
+        }
+        return null;
+    }
+
+    function makeGhost(source, touch) {
+        const g = source.cloneNode(true);
+        g.style.cssText = `position:fixed;z-index:9999;opacity:0.85;pointer-events:none;
+            width:${source.offsetWidth}px;left:${touch.clientX - source.offsetWidth/2}px;
+            top:${touch.clientY - source.offsetHeight/2}px;background:var(--surface2);
+            border-radius:${source.classList.contains('card') ? '16px' : '8px'};
+            border:1px solid var(--accent-dim);box-shadow:0 8px 32px rgba(0,0,0,0.4);`;
+        document.body.appendChild(g);
+        return g;
+    }
+
     document.addEventListener('touchstart', (e) => {
-        const row = e.target.closest('.task-row[draggable="true"]');
+        // Check for card drag via handle
+        const handle = e.target.closest('.card-drag-handle');
+        if (handle) {
+            const cardEl = handle.closest('.card');
+            if (!cardEl) return;
+            const touch = e.touches[0];
+            let moved = false;
+            let timer = setTimeout(() => {
+                if (moved) return;
+                dragMode = 'card';
+                touchDragInfo = { cardId: cardEl.dataset.cardId };
+                ghostEl = makeGhost(cardEl, touch);
+                cardEl.classList.add('card-dragging');
+                if (navigator.vibrate) navigator.vibrate(30);
+            }, 300);
+            handle.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); }, { once: true });
+            handle.addEventListener('touchend', () => clearTimeout(timer), { once: true });
+            return;
+        }
+
+        // Check for task drag via handle
+        const taskHandle = e.target.closest('.task-drag-handle');
+        const row = taskHandle ? taskHandle.closest('.task-row') : null;
         if (!row) return;
-        // Only initiate drag on long press (300ms)
         const touch = e.touches[0];
         let moved = false;
         let timer = setTimeout(() => {
             if (moved) return;
             const cardEl = row.closest('.card');
             if (!cardEl) return;
-            touchDragInfo = {
-                cardId: cardEl.dataset.cardId,
-                taskId: row.dataset.taskId
-            };
-            // Create ghost
-            ghostEl = row.cloneNode(true);
-            ghostEl.style.cssText = `position:fixed;z-index:9999;opacity:0.8;pointer-events:none;
-                width:${row.offsetWidth}px;left:${touch.clientX - row.offsetWidth/2}px;
-                top:${touch.clientY - row.offsetHeight/2}px;background:var(--surface2);
-                border-radius:8px;border:1px solid var(--accent-dim);`;
-            document.body.appendChild(ghostEl);
+            dragMode = 'task';
+            touchDragInfo = { cardId: cardEl.dataset.cardId, taskId: row.dataset.taskId };
+            ghostEl = makeGhost(row, touch);
             row.style.opacity = '0.3';
             if (navigator.vibrate) navigator.vibrate(30);
         }, 300);
@@ -1431,14 +1371,20 @@ async function init() {
         ghostEl.style.left = `${touch.clientX - ghostEl.offsetWidth/2}px`;
         ghostEl.style.top = `${touch.clientY - ghostEl.offsetHeight/2}px`;
 
-        // Highlight drop target
-        const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
-        if (lastDropTarget && lastDropTarget !== target) {
-            lastDropTarget.classList.remove('drag-over');
-        }
-        if (target && target.dataset.taskId !== touchDragInfo.taskId) {
-            target.classList.add('drag-over');
-            lastDropTarget = target;
+        if (dragMode === 'task') {
+            const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
+            if (lastDropTarget && lastDropTarget !== target) lastDropTarget.classList.remove('drag-over');
+            if (target && target.dataset.taskId !== touchDragInfo.taskId) {
+                target.classList.add('drag-over');
+                lastDropTarget = target;
+            }
+        } else if (dragMode === 'card') {
+            const target = getCardFromPoint(touch.clientX, touch.clientY);
+            if (lastDropTarget && lastDropTarget !== target) lastDropTarget.classList.remove('card-drag-over');
+            if (target && target.dataset.cardId !== touchDragInfo.cardId) {
+                target.classList.add('card-drag-over');
+                lastDropTarget = target;
+            }
         }
     }, { passive: false });
 
@@ -1446,21 +1392,28 @@ async function init() {
         if (!touchDragInfo || !ghostEl) return;
         const touch = e.changedTouches[0];
 
-        if (ghostEl) { ghostEl.remove(); ghostEl = null; }
-        if (lastDropTarget) { lastDropTarget.classList.remove('drag-over'); }
+        ghostEl.remove(); ghostEl = null;
 
-        // Restore opacity of dragged row
-        const srcRow = document.querySelector(`.task-row[data-task-id="${touchDragInfo.taskId}"]`);
-        if (srcRow) srcRow.style.opacity = '';
-
-        const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
-        if (target && target.dataset.taskId !== touchDragInfo.taskId) {
-            const toCardEl = target.closest('.card');
-            if (toCardEl) {
-                await moveTask(touchDragInfo.cardId, touchDragInfo.taskId, toCardEl.dataset.cardId, target.dataset.taskId);
+        if (dragMode === 'task') {
+            if (lastDropTarget) lastDropTarget.classList.remove('drag-over');
+            const srcRow = document.querySelector(`.task-row[data-task-id="${touchDragInfo.taskId}"]`);
+            if (srcRow) srcRow.style.opacity = '';
+            const target = getTaskRowFromPoint(touch.clientX, touch.clientY);
+            if (target && target.dataset.taskId !== touchDragInfo.taskId) {
+                const toCardEl = target.closest('.card');
+                if (toCardEl) await moveTask(touchDragInfo.cardId, touchDragInfo.taskId, toCardEl.dataset.cardId, target.dataset.taskId);
+            }
+        } else if (dragMode === 'card') {
+            if (lastDropTarget) lastDropTarget.classList.remove('card-drag-over');
+            const srcCard = document.querySelector(`.card[data-card-id="${touchDragInfo.cardId}"]`);
+            if (srcCard) srcCard.classList.remove('card-dragging');
+            const target = getCardFromPoint(touch.clientX, touch.clientY);
+            if (target && target.dataset.cardId !== touchDragInfo.cardId) {
+                await moveCard(touchDragInfo.cardId, target.dataset.cardId);
             }
         }
 
+        dragMode = null;
         touchDragInfo = null;
         lastDropTarget = null;
     });
