@@ -453,6 +453,7 @@
                 <div class="user-badge"><span class="dot"></span> <span id="displayUser"></span></div>
                 <button class="action-btn" id="diaryBtn" style="font-size:12px; padding:6px 10px;">Diary</button>
                 <button class="action-btn" id="meditationBtn" style="font-size:12px; padding:6px 10px;">🕉 Meditation</button>
+                <button class="action-btn" id="togglBtn" style="font-size:12px; padding:6px 10px;">⏱ Toggl</button>
                 <button class="logout-btn" id="logoutBtn">Sign out</button>
             </div>
         </div>
@@ -1216,6 +1217,11 @@ async function init() {
     // Meditation redirect
     document.getElementById('meditationBtn').addEventListener('click', () => {
         window.location.href = 'Meditation.html';
+    });
+
+    // Toggl tracker redirect
+    document.getElementById('togglBtn').addEventListener('click', () => {
+        window.location.href = 'toggl_tracker.html';
     });
 
     // Export PDF
