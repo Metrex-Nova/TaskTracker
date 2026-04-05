@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Activity Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            padding: 10px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .date-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .nav-btn:hover {
+            background: #444;
+        }
+
+        #currentDate {
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .pdf-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .pdf-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .pdf-btn:hover {
+            background: #0052a3;
+        }
+
+        .tracking-area {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #222;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 2px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .time-cell {
+            width: 100px;
+            font-weight: bold;
+            color: #4fc3f7;
+            vertical-align: top;
+            padding-top: 12px;
+            white-space: nowrap;
+        }
+
+        .activity-cell {
+            width: calc(100% - 100px);
+            position: relative;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 60px;
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px 40px 8px 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4fc3f7;
+            box-shadow: 0 0 0 1px rgba(79, 195, 247, 0.2);
+        }
+
+        footer {
+            text-align: center;
+            padding: 15px;
+            border-top: 1px solid #333;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .empty-day {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .start-day-btn {
+            background: #00c853;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .start-day-btn:hover {
+            background: #00b248;
+        }
+
+        /* Plus button styles */
+        .plus-btn {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 2;
+        }
+
+        .plus-btn:hover {
+            background: #444;
+            transform: scale(1.1);
+        }
+
+        .plus-btn.hidden {
+            display: none;
+        }
+
+        /* Calendar modal */
+        .calendar-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .calendar-content {
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day {
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .calendar-day:hover {
+            background: #333;
+        }
+
+        .calendar-day.selected {
+            background: #0066cc;
+            color: white;
+        }
+
+        .calendar-day.has-data {
+            border: 1px solid #00c853;
+        }
+
+        .weekday-header {
+            text-align: center;
+            padding: 5px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .time-navigation {
+            position: sticky;
+            top: 40px;
+            background: #111;
+            padding: 10px;
+            z-index: 5;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .time-jump-btn {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .time-jump-btn:hover {
+            background: #444;
+        }
+
+        /* Status message */
+        .status-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            display: none;
+            z-index: 1000;
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .date-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .date-nav {
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+            
+            .pdf-btn {
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 6px 4px;
+            }
+            
+            textarea {
+                min-height: 80px;
+                font-size: 16px;
+                padding-right: 35px;
+            }
+            
+            .time-cell {
+                width: 70px;
+                font-size: 12px;
+            }
+            
+            .activity-cell {
+                width: calc(100% - 70px);
+            }
+            
+            .plus-btn {
+                width: 25px;
+                height: 25px;
+                font-size: 16px;
+                right: 5px;
+                top: 5px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            
+            .time-cell {
+                width: 60px;
+                font-size: 11px;
+            }
+            
+            .activity-cell {
+                width: calc(100% - 60px);
+            }
+        }
+
+        /* Scroll position preservation */
+        .tracking-area {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Daily Activity Tracker</h1>
+            
+            <div class="date-controls">
+                <div class="date-nav">
+                    <button class="nav-btn" id="prevDay">←</button>
+                    <div id="currentDate">Loading...</div>
+                    <button class="nav-btn" id="nextDay">→</button>
+                    <button class="nav-btn" id="todayBtn">Today</button>
+                </div>
+                <button class="nav-btn" id="calendarBtn">📅 Calendar</button>
+                <button class="nav-btn" id="taskTrackerBtn">📋 TaskTracker</button>
+            </div>
+            
+            <div class="pdf-buttons">
+                <button class="pdf-btn" id="dayPdfBtn">Day PDF</button>
+                <button class="pdf-btn" id="weekPdfBtn">Week PDF</button>
+                <button class="pdf-btn" id="monthPdfBtn">Month PDF</button>
+            </div>
+            <div style="text-align:center; margin-top:10px; color:#a8ffaf; font-size:14px;" id="syncStatus">Using local storage until Supabase login is detected.</div>
+        </header>
+
+        <main class="tracking-area" id="trackingArea">
+            <div id="trackingContent">
+                <!-- Content will be loaded here -->
+                <div class="empty-day" id="emptyDayMessage">
+                    <p>No entries for this day yet.</p>
+                    <button class="start-day-btn" id="startDayBtn">Start Tracking Day</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            Data is stored in your browser. Clear browser data will delete all records.
+        </footer>
+    </div>
+
+    <!-- Calendar Modal -->
+    <div class="calendar-modal" id="calendarModal">
+        <div class="calendar-content">
+            <div class="calendar-header">
+                <button class="nav-btn" id="prevMonthBtn">←</button>
+                <h3 id="currentMonth">January 2024</h3>
+                <button class="nav-btn" id="nextMonthBtn">→</button>
+            </div>
+            <div class="calendar-grid" id="calendarDays">
+                <!-- Calendar days will be generated here -->
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button class="control-btn" id="closeCalendarBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status message -->
+    <div class="status-message" id="statusMessage"></div>
+
+    <!-- Include jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        // Supabase config
+        const SUPABASE_URL = 'https://dfghvpvzhbruzfvpodda.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzYSIsInJlZiI6ImRmZ2h2cHZ6aGJydXpmdnBvZGRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3OTk0MDQsImV4cCI6MjA4ODM3NTQwNH0.pWOZWUmADwkJ6MZ3rpgi5o7DRi3I3YQiCAtMxi-lriE';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Global variables
+        let currentDate = new Date();
+        let activities = {};
+        let scrollPosition = 0;
+        let currentCalendarMonth = new Date();
+        let lastNonEmptyIndex = -1;
+        let currentUser = null;
+        const LOCAL_STORAGE_KEY = 'activityTrackerData';
+        const REMOTE_TABLE = 'activity_tracker_data';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            await initAuth();
+            await loadData();
+            setupEventListeners();
+            loadDate(currentDate);
+        });
+
+        async function initAuth() {
+            try {
+                const { data: { session }, error } = await sb.auth.getSession();
+                if (error) {
+                    console.warn('Supabase auth session error:', error);
+                }
+                if (session && session.user) {
+                    currentUser = session.user;
+                }
+            } catch (err) {
+                console.warn('Supabase init error:', err);
+            }
+            updateSyncStatus();
+        }
+
+        async function loadData() {
+            if (currentUser) {
+                const loaded = await loadDataFromSupabase();
+                if (loaded) return;
+            }
+            loadDataFromLocalStorage();
+        }
+
+        function loadDataFromLocalStorage() {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                activities = JSON.parse(saved);
+            }
+        }
+
+        async function loadDataFromSupabase() {
+            try {
+                const { data, error } = await sb.from(REMOTE_TABLE)
+                    .select('payload')
+                    .eq('user_id', currentUser.id)
+                    .maybeSingle();
+
+                if (error) {
+                    console.warn('Supabase load error:', error);
+                    return false;
+                }
+                if (data && data.payload) {
+                    activities = data.payload;
+                    return true;
+                }
+            } catch (err) {
+                console.warn('Supabase load exception:', err);
+            }
+            return false;
+        }
+
+        async function saveData() {
+            if (currentUser) {
+                const success = await saveDataToSupabase();
+                if (success) return;
+            }
+            saveDataToLocalStorage();
+        }
+
+        function saveDataToLocalStorage() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(activities));
+        }
+
+        async function saveDataToSupabase() {
+            try {
+                const { error } = await sb.from(REMOTE_TABLE)
+                    .upsert({ user_id: currentUser.id, payload: activities }, { onConflict: 'user_id' });
+                if (error) {
+                    console.warn('Supabase save error:', error);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                console.warn('Supabase save exception:', err);
+                return false;
+            }
+        }
+
+        function updateSyncStatus() {
+            const statusEl = document.getElementById('syncStatus');
+            if (!statusEl) return;
+            if (currentUser) {
+                statusEl.textContent = 'Supabase sync enabled for ' + currentUser.email + '.';
+            } else {
+                statusEl.textContent = 'Not signed in. Data is stored locally only.';
+            }
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('statusMessage');
+            status.textContent = message;
+            status.style.display = 'block';
+            setTimeout(() => { status.style.display = 'none'; }, 2200);
+        }
+
+        // Setup all event listeners
+        function setupEventListeners() {
+            // Date navigation
+            document.getElementById('prevDay').addEventListener('click', () => changeDate(-1));
+            document.getElementById('nextDay').addEventListener('click', () => changeDate(1));
+            document.getElementById('todayBtn').addEventListener('click', goToToday);
+            document.getElementById('calendarBtn').addEventListener('click', openCalendar);
+            
+            // PDF buttons
+            document.getElementById('dayPdfBtn').addEventListener('click', generateDayPDF);
+            document.getElementById('weekPdfBtn').addEventListener('click', generateWeekPDF);
+            document.getElementById('monthPdfBtn').addEventListener('click', generateMonthPDF);
+            document.getElementById('taskTrackerBtn').addEventListener('click', () => {
+                window.location.href = 'TaskTracker.html';
+            });
+            
+            // Start day button
+            document.getElementById('startDayBtn').addEventListener('click', createFullDayTable);
+            
+            // Calendar controls
+            document.getElementById('closeCalendarBtn').addEventListener('click', closeCalendar);
+            document.getElementById('prevMonthBtn').addEventListener('click', () => changeCalendarMonth(-1));
+            document.getElementById('nextMonthBtn').addEventListener('click', () => changeCalendarMonth(1));
+            
+            // Save scroll position before unload
+            window.addEventListener('beforeunload', saveScrollPosition);
+            
+            // Load scroll position after load
+            window.addEventListener('load', restoreScrollPosition);
+        }
+
+        // Change date by offset days
+        function changeDate(offset) {
+            const newDate = new Date(currentDate);
+            newDate.setDate(newDate.getDate() + offset);
+            loadDate(newDate);
+        }
+
+        // Go to today
+        function goToToday() {
+            loadDate(new Date());
+        }
+
+        // Load a specific date
+        function loadDate(date) {
+            currentDate = date;
+            updateDateDisplay();
+            renderActivities();
+            restoreScrollPosition();
+        }
+
+        // Update date display
+        function updateDateDisplay() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = currentDate.toLocaleDateString('en-US', options);
+        }
+
+        // Create full day table with 288 rows (5-minute intervals)
+        function createFullDayTable() {
+            const dateKey = formatDateKey(currentDate);
+            
+            // Initialize empty activities for this date
+            if (!activities[dateKey]) {
+                activities[dateKey] = {};
+            }
+            
+            // Generate all 5-minute intervals for the day
+            const timeSlots = generateAllTimeSlots();
+            
+            // Ensure all time slots exist in activities
+            timeSlots.forEach(timeSlot => {
+                if (!activities[dateKey][timeSlot]) {
+                    activities[dateKey][timeSlot] = "";
+                }
+            });
+            
+            saveData();
+            renderActivities();
+            
+            // Focus on current time slot
+            focusCurrentTimeSlot();
+        }
+
+        // Generate all 5-minute time slots for a day
+        function generateAllTimeSlots() {
+            const slots = [];
+            for (let hour = 0; hour < 24; hour++) {
+                for (let minute = 0; minute < 60; minute += 5) {
+                    const hourStr = hour.toString().padStart(2, '0');
+                    const minuteStr = minute.toString().padStart(2, '0');
+                    slots.push(`${hourStr}:${minuteStr}`);
+                }
+            }
+            return slots;
+        }
+
+        // Render activities for current date
+        function renderActivities() {
+            const dateKey = formatDateKey(currentDate);
+            const dateActivities = activities[dateKey] || {};
+            const container = document.getElementById('trackingContent');
+            
+            if (Object.keys(dateActivities).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-day" id="emptyDayMessage">
+                        <p>No entries for this day yet.</p>
+                        <button class="start-day-btn" id="startDayBtn">Start Tracking Day</button>
+                    </div>
+                `;
+                document.getElementById('startDayBtn').addEventListener('click', createFullDayTable);
+                return;
+            }
+            
+            // Get all time slots in order
+            const timeSlots = generateAllTimeSlots();
+            
+            // Find last non-empty index for plus button placement
+            lastNonEmptyIndex = -1;
+            for (let i = timeSlots.length - 1; i >= 0; i--) {
+                if (dateActivities[timeSlots[i]] && dateActivities[timeSlots[i]].trim() !== '') {
+                    lastNonEmptyIndex = i;
+                    break;
+                }
+            }
+            
+            let html = '<div class="table-container">';
+            html += '<div class="time-navigation">';
+            html += '<span>Jump to:</span>';
+            html += '<button class="time-jump-btn" data-time="00:00">Midnight</button>';
+            html += '<button class="time-jump-btn" data-time="06:00">6 AM</button>';
+            html += '<button class="time-jump-btn" data-time="09:00">9 AM</button>';
+            html += '<button class="time-jump-btn" data-time="12:00">Noon</button>';
+            html += '<button class="time-jump-btn" data-time="15:00">3 PM</button>';
+            html += '<button class="time-jump-btn" data-time="18:00">6 PM</button>';
+            html += '<button class="time-jump-btn" data-time="21:00">9 PM</button>';
+            html += '</div>';
+            html += '<table>';
+            html += '<thead><tr><th>Time</th><th>Activity</th></tr></thead><tbody>';
+            
+            timeSlots.forEach((timeSlot, index) => {
+                const activity = dateActivities[timeSlot] || "";
+                const showPlusButton = index === lastNonEmptyIndex;
+                
+                html += `
+                    <tr>
+                        <td class="time-cell">${timeSlot}</td>
+                        <td class="activity-cell">
+                            <textarea 
+                                class="activity-input" 
+                                data-date="${dateKey}" 
+                                data-time="${timeSlot}"
+                                data-index="${index}"
+                                placeholder="What did you do at ${timeSlot}?"
+                            >${activity}</textarea>
+                            ${showPlusButton ? '<button class="plus-btn" data-index="' + index + '">+</button>' : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+            
+            // Add event listeners to textareas
+            document.querySelectorAll('.activity-input').forEach((textarea, index) => {
+                textarea.addEventListener('input', function() {
+                    saveActivity(this);
+                    updatePlusButtonPosition();
+                });
+                
+                textarea.addEventListener('focus', function() {
+                    // Scroll textarea into view on mobile
+                    if (window.innerWidth <= 768) {
+                        setTimeout(() => {
+                            this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 100);
+                    }
+                });
+            });
+            
+            // Add event listeners to plus buttons
+            document.querySelectorAll('.plus-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    copyToNextSlot(this.dataset.index);
+                });
+            });
+            
+            // Add event listeners to time jump buttons
+            document.querySelectorAll('.time-jump-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const time = this.dataset.time;
+                    jumpToTime(time);
+                });
+            });
+            
+            // Focus on current time slot or first textarea
+            focusCurrentTimeSlot();
+        }
+
+        // Update plus button position based on last non-empty entry
+        function updatePlusButtonPosition() {
+            const dateKey = formatDateKey(currentDate);
+            const dateActivities = activities[dateKey] || {};
+            const timeSlots = generateAllTimeSlots();
+            
+            // Find new last non-empty index
+            let newLastNonEmptyIndex = -1;
+            for (let i = timeSlots.length - 1; i >= 0; i--) {
+                if (dateActivities[timeSlots[i]] && dateActivities[timeSlots[i]].trim() !== '') {
+                    newLastNonEmptyIndex = i;
+                    break;
+                }
+            }
+            
+            // If position changed, re-render the table
+            if (newLastNonEmptyIndex !== lastNonEmptyIndex) {
+                lastNonEmptyIndex = newLastNonEmptyIndex;
+                renderActivities();
+                
+                // Show status message
+                if (newLastNonEmptyIndex >= 0) {
+                    showStatus(`Plus button moved to ${timeSlots[newLastNonEmptyIndex]}`);
+                }
+            }
+        }
+
+        // Focus on current time slot based on actual time
+        function focusCurrentTimeSlot() {
+            const now = new Date();
+            const currentHour = now.getHours().toString().padStart(2, '0');
+            const currentMinute = Math.floor(now.getMinutes() / 5) * 5;
+            const currentMinuteStr = currentMinute.toString().padStart(2, '0');
+            const currentTimeSlot = `${currentHour}:${currentMinuteStr}`;
+            
+            // Find and focus the textarea for current time
+            const textareas = document.querySelectorAll('.activity-input');
+            textareas.forEach(textarea => {
+                if (textarea.dataset.time === currentTimeSlot) {
+                    setTimeout(() => {
+                        textarea.focus();
+                        if (window.innerWidth <= 768) {
+                            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                    return;
+                }
+            });
+            
+            // If not found, focus first textarea
+            if (textareas.length > 0 && document.activeElement.tagName !== 'TEXTAREA') {
+                setTimeout(() => {
+                    textareas[0].focus();
+                }, 100);
+            }
+        }
+
+        // Jump to specific time in the table
+        function jumpToTime(time) {
+            const textareas = document.querySelectorAll('.activity-input');
+            textareas.forEach(textarea => {
+                if (textarea.dataset.time === time) {
+                    textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => textarea.focus(), 300);
+                    return;
+                }
+            });
+        }
+
+        // Save activity from textarea
+        function saveActivity(textarea) {
+            const dateKey = textarea.dataset.date;
+            const timeKey = textarea.dataset.time;
+            const activity = textarea.value;
+            
+            if (!activities[dateKey]) {
+                activities[dateKey] = {};
+            }
+            
+            activities[dateKey][timeKey] = activity;
+            saveData();
+        }
+
+        // Copy activity to next time slot when plus button is clicked
+        function copyToNextSlot(index) {
+            const dateKey = formatDateKey(currentDate);
+            const dateActivities = activities[dateKey];
+            
+            if (!dateActivities) return;
+            
+            const timeSlots = generateAllTimeSlots();
+            const currentIndex = parseInt(index);
+            
+            // Check if current slot has content
+            const currentTime = timeSlots[currentIndex];
+            const currentText = dateActivities[currentTime] || "";
+            
+            if (!currentText.trim()) {
+                showStatus('Current slot is empty');
+                return;
+            }
+            
+            // Check if next slot exists
+            const nextIndex = currentIndex + 1;
+            if (nextIndex >= timeSlots.length) {
+                showStatus('No more time slots available');
+                return;
+            }
+            
+            const nextTime = timeSlots[nextIndex];
+            
+            // Copy text to next slot
+            dateActivities[nextTime] = currentText;
+            activities[dateKey] = dateActivities;
+            saveData();
+            
+            // Update the UI
+            const nextTextarea = document.querySelector(`textarea[data-time="${nextTime}"]`);
+            if (nextTextarea) {
+                nextTextarea.value = currentText;
+                nextTextarea.focus();
+                
+                // Scroll to next textarea on mobile
+                if (window.innerWidth <= 768) {
+                    setTimeout(() => {
+                        nextTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                }
+                
+                // Trigger input event to update plus button position
+                const event = new Event('input', { bubbles: true });
+                nextTextarea.dispatchEvent(event);
+            }
+            
+            showStatus(`Copied to ${nextTime}`);
+        }
+
+        // Show status message
+        function showStatus(message) {
+            const status = document.getElementById('statusMessage');
+            status.textContent = message;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 2000);
+        }
+
+        // Scroll position management
+        function saveScrollPosition() {
+            scrollPosition = document.getElementById('trackingArea').scrollTop;
+            localStorage.setItem('activityTrackerScroll', scrollPosition.toString());
+        }
+
+        function restoreScrollPosition() {
+            const savedPosition = localStorage.getItem('activityTrackerScroll');
+            if (savedPosition) {
+                setTimeout(() => {
+                    document.getElementById('trackingArea').scrollTop = parseInt(savedPosition);
+                }, 100);
+            }
+        }
+
+        // Calendar functions
+        function openCalendar() {
+            currentCalendarMonth = new Date(currentDate);
+            updateCalendar();
+            document.getElementById('calendarModal').style.display = 'flex';
+        }
+
+        function closeCalendar() {
+            document.getElementById('calendarModal').style.display = 'none';
+        }
+
+        function changeCalendarMonth(offset) {
+            currentCalendarMonth.setMonth(currentCalendarMonth.getMonth() + offset);
+            updateCalendar();
+        }
+
+        function updateCalendar() {
+            const monthYear = currentCalendarMonth.toLocaleDateString('en-US', { 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            document.getElementById('currentMonth').textContent = monthYear;
+            
+            const calendarDays = document.getElementById('calendarDays');
+            calendarDays.innerHTML = '';
+            
+            // Add weekday headers (Tuesday to Monday)
+            const weekdays = ['Tu', 'We', 'Th', 'Fr', 'Sa', 'Su', 'Mo'];
+            weekdays.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'weekday-header';
+                header.textContent = day;
+                calendarDays.appendChild(header);
+            });
+            
+            // Calculate first day of month
+            const firstDay = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth(), 1);
+            
+            // Adjust for Tuesday start
+            let startOffset = firstDay.getDay();
+            if (startOffset === 1) startOffset = -6;
+            else if (startOffset === 0) startOffset = -5;
+            else startOffset = startOffset - 1;
+            
+            const startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() + startOffset);
+            
+            // Generate 42 days (6 weeks)
+            for (let i = 0; i < 42; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                // Check if this date has data
+                const dateKey = formatDateKey(date);
+                if (activities[dateKey] && Object.keys(activities[dateKey]).length > 0) {
+                    dayElement.classList.add('has-data');
+                }
+                
+                // Check if this is today
+                const today = new Date();
+                if (date.toDateString() === today.toDateString()) {
+                    dayElement.style.border = '2px solid #4fc3f7';
+                }
+                
+                // Check if this is the currently viewed date
+                if (date.toDateString() === currentDate.toDateString()) {
+                    dayElement.classList.add('selected');
+                }
+                
+                dayElement.textContent = date.getDate();
+                dayElement.dataset.date = dateKey;
+                
+                // Highlight different month
+                if (date.getMonth() !== currentCalendarMonth.getMonth()) {
+                    dayElement.style.opacity = '0.5';
+                }
+                
+                dayElement.addEventListener('click', () => {
+                    loadDate(date);
+                    closeCalendar();
+                });
+                
+                calendarDays.appendChild(dayElement);
+            }
+        }
+
+        // PDF Generation functions
+        function generateDayPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const dateKey = formatDateKey(currentDate);
+            const dateActivities = activities[dateKey] || {};
+            
+            doc.setFontSize(16);
+            doc.text(`Daily Activities - ${formatDateDisplay(currentDate)}`, 14, 20);
+            
+            const stats = calculateDayStatistics(dateActivities);
+            
+            doc.setFontSize(12);
+            doc.text(`Total entries: ${stats.totalEntries}`, 14, 35);
+            doc.text(`Most frequent activity: ${stats.mostFrequent || 'None'}`, 14, 45);
+            
+            if (stats.topTasks.length > 0) {
+                doc.setFontSize(14);
+                doc.text('Top Tasks (Time Spent):', 14, 60);
+                doc.setFontSize(11);
+                
+                stats.topTasks.forEach((task, index) => {
+                    const yPos = 70 + (index * 7);
+                    doc.text(`${index + 1}. ${task.activity}: ${task.time} minutes`, 20, yPos);
+                });
+            }
+            
+            const timeSlots = generateAllTimeSlots();
+            let yPos = (stats.topTasks.length * 7) + 80;
+            let entriesAdded = 0;
+            
+            timeSlots.forEach(timeSlot => {
+                const activity = dateActivities[timeSlot];
+                if (activity && activity.trim() !== '') {
+                    if (yPos > 280) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    if (entriesAdded === 0) {
+                        doc.setFontSize(14);
+                        doc.text('Activities:', 14, yPos);
+                        yPos += 10;
+                        doc.setFontSize(10);
+                    }
+                    
+                    doc.text(`${timeSlot}: ${activity}`, 14, yPos);
+                    yPos += 7;
+                    entriesAdded++;
+                }
+            });
+            
+            doc.save(`Tracking_${dateKey}.pdf`);
+        }
+
+        function generateWeekPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const weekDates = getWeekDates(currentDate);
+            const weekData = {};
+            let hasData = false;
+            
+            weekDates.forEach(date => {
+                const dateKey = formatDateKey(date);
+                weekData[dateKey] = activities[dateKey] || {};
+                if (Object.keys(weekData[dateKey]).length > 0) {
+                    hasData = true;
+                }
+            });
+            
+            if (!hasData) {
+                alert('No data for this week');
+                return;
+            }
+            
+            doc.setFontSize(16);
+            doc.text(`Weekly Activities - ${formatDateDisplay(weekDates[0])} to ${formatDateDisplay(weekDates[6])}`, 14, 20);
+            
+            let yPos = 35;
+            
+            weekDates.forEach(date => {
+                const dateKey = formatDateKey(date);
+                const dayActivities = weekData[dateKey];
+                
+                if (Object.keys(dayActivities).length > 0) {
+                    if (yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.text(formatDateDisplay(date), 14, yPos);
+                    yPos += 7;
+                    
+                    doc.setFontSize(10);
+                    const timeSlots = generateAllTimeSlots();
+                    
+                    timeSlots.forEach(timeSlot => {
+                        const activity = dayActivities[timeSlot];
+                        if (activity && activity.trim() !== '') {
+                            if (yPos > 280) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            
+                            doc.text(`  ${timeSlot}: ${activity}`, 20, yPos);
+                            yPos += 7;
+                        }
+                    });
+                    
+                    yPos += 5;
+                }
+            });
+            
+            const startDate = formatDateKey(weekDates[0]);
+            const endDate = formatDateKey(weekDates[6]);
+            doc.save(`Tracking_Week_${startDate}_to_${endDate}.pdf`);
+        }
+
+        function generateMonthPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const monthName = currentDate.toLocaleDateString('en-US', { month: 'long' });
+            
+            const monthData = {};
+            let hasData = false;
+            
+            for (let day = 1; day <= 31; day++) {
+                const date = new Date(year, month, day);
+                if (date.getMonth() !== month) break;
+                
+                const dateKey = formatDateKey(date);
+                if (activities[dateKey] && Object.keys(activities[dateKey]).length > 0) {
+                    monthData[dateKey] = activities[dateKey];
+                    hasData = true;
+                }
+            }
+            
+            if (!hasData) {
+                alert('No data for this month');
+                return;
+            }
+            
+            doc.setFontSize(16);
+            doc.text(`Monthly Activities - ${monthName} ${year}`, 14, 20);
+            
+            let yPos = 35;
+            const dateKeys = Object.keys(monthData).sort();
+            
+            dateKeys.forEach(dateKey => {
+                const date = parseDateKey(dateKey);
+                const dayActivities = monthData[dateKey];
+                
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(12);
+                doc.text(formatDateDisplay(date), 14, yPos);
+                yPos += 7;
+                
+                doc.setFontSize(10);
+                const timeSlots = generateAllTimeSlots();
+                
+                timeSlots.forEach(timeSlot => {
+                    const activity = dayActivities[timeSlot];
+                    if (activity && activity.trim() !== '') {
+                        if (yPos > 280) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        doc.text(`  ${timeSlot}: ${activity}`, 20, yPos);
+                        yPos += 7;
+                    }
+                });
+                
+                yPos += 5;
+            });
+            
+            doc.save(`Tracking_${monthName}_${year}.pdf`);
+        }
+
+        // Utility functions
+        function formatDateKey(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        function parseDateKey(dateKey) {
+            return new Date(dateKey + 'T00:00:00');
+        }
+
+        function formatDateDisplay(date) {
+            return date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        function getWeekDates(date) {
+            const day = date.getDay();
+            const diff = day >= 2 ? date.getDate() - day + 2 : date.getDate() - day - 5;
+            
+            const tuesday = new Date(date);
+            tuesday.setDate(diff);
+            
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const currentDate = new Date(tuesday);
+                currentDate.setDate(tuesday.getDate() + i);
+                weekDates.push(currentDate);
+            }
+            
+            return weekDates;
+        }
+
+        function calculateDayStatistics(dayActivities) {
+            const stats = {
+                totalEntries: 0,
+                mostFrequent: null,
+                topTasks: []
+            };
+            
+            const activityCounts = {};
+            Object.values(dayActivities).forEach(activity => {
+                if (activity && activity.trim() !== '') {
+                    stats.totalEntries++;
+                    activityCounts[activity] = (activityCounts[activity] || 0) + 1;
+                }
+            });
+            
+            let maxCount = 0;
+            Object.entries(activityCounts).forEach(([activity, count]) => {
+                if (count > maxCount) {
+                    maxCount = count;
+                    stats.mostFrequent = activity;
+                }
+            });
+            
+            const taskTimes = Object.entries(activityCounts)
+                .map(([activity, count]) => ({
+                    activity,
+                    time: count * 5,
+                    count
+                }))
+                .sort((a, b) => b.time - a.time)
+                .slice(0, 6);
+            
+            stats.topTasks = taskTimes;
+            
+            return stats;
+        }
+    </script>
+</body>
+</html>
